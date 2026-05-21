@@ -1,15 +1,15 @@
 import { Link, useLocation } from "wouter";
-import { 
-  LayoutDashboard, 
-  Users, 
-  Briefcase, 
-  CheckSquare, 
-  DollarSign, 
-  ShoppingCart, 
-  MessageSquare, 
-  Calendar, 
-  FileText, 
-  Bell, 
+import {
+  LayoutDashboard,
+  Users,
+  Briefcase,
+  CheckSquare,
+  DollarSign,
+  ShoppingCart,
+  MessageSquare,
+  Calendar,
+  FileText,
+  Bell,
   Settings,
   ShieldAlert,
   LayoutTemplate,
@@ -17,29 +17,62 @@ import {
 import { cn } from "@/lib/utils";
 import { useGetCurrentUser } from "@workspace/api-client-react";
 
+type NavItem = { name: string; href: string; icon: React.ElementType };
+
+const ALL_NAV_ITEMS: NavItem[] = [
+  { name: "Dashboard",      href: "/",               icon: LayoutDashboard },
+  { name: "Leads",          href: "/leads",           icon: Users           },
+  { name: "Projects",       href: "/projects",        icon: Briefcase       },
+  { name: "Tasks",          href: "/tasks",           icon: CheckSquare     },
+  { name: "Task Templates", href: "/task-templates",  icon: LayoutTemplate  },
+  { name: "Finance",        href: "/finance",         icon: DollarSign      },
+  { name: "Procurement",    href: "/procurement",     icon: ShoppingCart    },
+  { name: "Communications", href: "/communications",  icon: MessageSquare   },
+  { name: "Meetings",       href: "/meetings",        icon: Calendar        },
+  { name: "Documents",      href: "/documents",       icon: FileText        },
+];
+
+const ROLE_NAV_HREFS: Record<string, string[]> = {
+  admin: [
+    "/", "/leads", "/projects", "/tasks", "/task-templates",
+    "/finance", "/procurement", "/communications", "/meetings", "/documents",
+  ],
+  project_manager: [
+    "/", "/leads", "/projects", "/tasks", "/task-templates",
+    "/finance", "/procurement", "/communications", "/meetings", "/documents",
+  ],
+  engineer: [
+    "/", "/projects", "/tasks", "/task-templates",
+    "/communications", "/meetings", "/documents",
+  ],
+  accountant: [
+    "/", "/finance", "/projects",
+    "/communications", "/meetings", "/documents",
+  ],
+  procurement_officer: [
+    "/", "/procurement", "/projects",
+    "/communications", "/meetings", "/documents",
+  ],
+  viewer: [
+    "/", "/projects", "/tasks",
+    "/communications", "/meetings", "/documents",
+  ],
+};
+
 export function Sidebar() {
   const [location] = useLocation();
   const { data: user } = useGetCurrentUser();
 
-  const navigation = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Leads", href: "/leads", icon: Users },
-    { name: "Projects", href: "/projects", icon: Briefcase },
-    { name: "Tasks", href: "/tasks", icon: CheckSquare },
-    { name: "Task Templates", href: "/task-templates", icon: LayoutTemplate },
-    { name: "Finance", href: "/finance", icon: DollarSign },
-    { name: "Procurement", href: "/procurement", icon: ShoppingCart },
-    { name: "Communications", href: "/communications", icon: MessageSquare },
-    { name: "Meetings", href: "/meetings", icon: Calendar },
-    { name: "Documents", href: "/documents", icon: FileText },
-  ];
+  const role = user?.activeRole ?? "viewer";
+  const allowedHrefs = new Set(ROLE_NAV_HREFS[role] ?? ROLE_NAV_HREFS.viewer);
+  const navigation = ALL_NAV_ITEMS.filter((item) => allowedHrefs.has(item.href));
 
-  const secondaryNavigation = [
-    { name: "Notifications", href: "/notifications", icon: Bell },
-    { name: "Settings", href: "/settings", icon: Settings },
-    ...(user?.activeRole === "admin" ? [
+  const secondaryNavigation: NavItem[] = [
+    { name: "Notifications", href: "/notifications", icon: Bell     },
+    { name: "Settings",      href: "/settings",      icon: Settings },
+    ...(role === "admin" ? [
       { name: "Audit Logs", href: "/audit-logs", icon: ShieldAlert },
-      { name: "Admin", href: "/admin", icon: Users },
+      { name: "Admin",      href: "/admin",      icon: Users       },
     ] : []),
   ];
 
@@ -61,7 +94,9 @@ export function Sidebar() {
           </div>
           <nav className="space-y-1">
             {navigation.map((item) => {
-              const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+              const isActive =
+                location === item.href ||
+                (item.href !== "/" && location.startsWith(item.href));
               return (
                 <Link key={item.name} href={item.href}>
                   <div
@@ -72,7 +107,12 @@ export function Sidebar() {
                         : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                     )}
                   >
-                    <item.icon className={cn("w-4 h-4", isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50")} />
+                    <item.icon
+                      className={cn(
+                        "w-4 h-4",
+                        isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50"
+                      )}
+                    />
                     {item.name}
                   </div>
                 </Link>
@@ -98,7 +138,12 @@ export function Sidebar() {
                         : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                     )}
                   >
-                    <item.icon className={cn("w-4 h-4", isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50")} />
+                    <item.icon
+                      className={cn(
+                        "w-4 h-4",
+                        isActive ? "text-sidebar-primary" : "text-sidebar-foreground/50"
+                      )}
+                    />
                     {item.name}
                   </div>
                 </Link>
