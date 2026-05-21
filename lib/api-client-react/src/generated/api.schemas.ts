@@ -99,6 +99,12 @@ export type DashboardSummaryLeadFunnelItem = {
   value: number;
 };
 
+export type DashboardSummaryLeadsByStatusItem = {
+  status: string;
+  count: number;
+  value: number;
+};
+
 export interface DashboardSummary {
   totals: DashboardSummaryTotals;
   projectsByStatus: DashboardSummaryProjectsByStatusItem[];
@@ -106,6 +112,7 @@ export interface DashboardSummary {
   financials: DashboardSummaryFinancials;
   procurement: DashboardSummaryProcurement;
   leadFunnel: DashboardSummaryLeadFunnelItem[];
+  leadsByStatus: DashboardSummaryLeadsByStatusItem[];
 }
 
 export interface ActivityItem {

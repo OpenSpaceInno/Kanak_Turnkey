@@ -7,6 +7,7 @@
  */
 import type { DashboardSummaryFinancials } from "./dashboardSummaryFinancials";
 import type { DashboardSummaryLeadFunnelItem } from "./dashboardSummaryLeadFunnelItem";
+import type { DashboardSummaryLeadsByStatusItem } from "./dashboardSummaryLeadsByStatusItem";
 import type { DashboardSummaryProcurement } from "./dashboardSummaryProcurement";
 import type { DashboardSummaryProjectsByStatusItem } from "./dashboardSummaryProjectsByStatusItem";
 import type { DashboardSummaryTasksByStatusItem } from "./dashboardSummaryTasksByStatusItem";
@@ -19,4 +20,5 @@ export interface DashboardSummary {
   financials: DashboardSummaryFinancials;
   procurement: DashboardSummaryProcurement;
   leadFunnel: DashboardSummaryLeadFunnelItem[];
+  leadsByStatus: DashboardSummaryLeadsByStatusItem[];
 }

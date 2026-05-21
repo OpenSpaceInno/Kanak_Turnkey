@@ -177,6 +177,13 @@ export const GetDashboardSummaryResponse = zod.object({
       value: zod.number(),
     }),
   ),
+  leadsByStatus: zod.array(
+    zod.object({
+      status: zod.string(),
+      count: zod.number(),
+      value: zod.number(),
+    }),
+  ),
 });
 
 export const GetRecentActivityResponseItem = zod.object({

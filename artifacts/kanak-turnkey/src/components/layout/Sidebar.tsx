@@ -41,6 +41,9 @@ const ROLE_NAV_HREFS: Record<string, string[]> = {
     "/", "/leads", "/projects", "/tasks", "/task-templates",
     "/finance", "/procurement", "/communications", "/meetings", "/documents",
   ],
+  sales_manager: [
+    "/", "/leads", "/communications", "/meetings", "/documents",
+  ],
   engineer: [
     "/", "/projects", "/tasks", "/task-templates",
     "/communications", "/meetings", "/documents",

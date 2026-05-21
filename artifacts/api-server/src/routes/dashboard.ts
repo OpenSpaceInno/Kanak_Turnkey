@@ -114,6 +114,20 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
     value: stageMap.get(s)?.value ?? 0,
   }));
 
+  const leadsByStatusRaw = await db
+    .select({
+      status: leadsTable.status,
+      count: sql<number>`count(*)::int`,
+      value: sql<string>`coalesce(sum(budget_estimate),0)::text`,
+    })
+    .from(leadsTable)
+    .groupBy(leadsTable.status);
+  const leadsByStatus = leadsByStatusRaw.map((r) => ({
+    status: r.status,
+    count: r.count,
+    value: num(r.value) ?? 0,
+  }));
+
   res.json({
     totals: {
       projects: projectsCount?.c ?? 0,
@@ -136,6 +150,7 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
       lowStockMaterials: lowStock?.c ?? 0,
     },
     leadFunnel,
+    leadsByStatus,
   });
 });
 

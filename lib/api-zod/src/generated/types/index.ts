@@ -27,6 +27,7 @@ export * from "./communicationInputCommunicationType";
 export * from "./dashboardSummary";
 export * from "./dashboardSummaryFinancials";
 export * from "./dashboardSummaryLeadFunnelItem";
+export * from "./dashboardSummaryLeadsByStatusItem";
 export * from "./dashboardSummaryProcurement";
 export * from "./dashboardSummaryProjectsByStatusItem";
 export * from "./dashboardSummaryTasksByStatusItem";

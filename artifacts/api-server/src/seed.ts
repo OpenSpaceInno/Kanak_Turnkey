@@ -49,6 +49,7 @@ export async function seedIfEmpty(): Promise<void> {
         roles: [
           "admin",
           "project_manager",
+          "sales_manager",
           "engineer",
           "accountant",
           "procurement_officer",
@@ -90,6 +91,13 @@ export async function seedIfEmpty(): Promise<void> {
         avatarUrl: null,
         roles: ["viewer"],
         activeRole: "viewer",
+      },
+      {
+        email: "kavita.sharma@kanak.in",
+        name: "Kavita Sharma",
+        avatarUrl: null,
+        roles: ["sales_manager", "viewer"],
+        activeRole: "sales_manager",
       },
     ])
     .returning();

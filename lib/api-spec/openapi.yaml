@@ -739,7 +739,7 @@ components:
 
     DashboardSummary:
       type: object
-      required: [totals, projectsByStatus, tasksByStatus, financials, procurement, leadFunnel]
+      required: [totals, projectsByStatus, tasksByStatus, financials, procurement, leadFunnel, leadsByStatus]
       properties:
         totals:
           type: object
@@ -784,6 +784,15 @@ components:
             required: [stage, count, value]
             properties:
               stage: { type: string }
+              count: { type: integer }
+              value: { type: number }
+        leadsByStatus:
+          type: array
+          items:
+            type: object
+            required: [status, count, value]
+            properties:
+              status: { type: string }
               count: { type: integer }
               value: { type: number }
     ActivityItem:
