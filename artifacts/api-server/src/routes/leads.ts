@@ -790,7 +790,7 @@ router.post("/leads/:id/convert", async (req, res): Promise<void> => {
     .update(leadsTable)
     .set({
       status: "won",
-      stage: "won",
+      stage: "finalization",
       wonProjectId: project.id,
     })
     .where(eq(leadsTable.id, lead.id));
