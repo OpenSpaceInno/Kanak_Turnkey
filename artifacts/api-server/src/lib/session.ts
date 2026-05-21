@@ -14,7 +14,7 @@ let cachedUser: CurrentUser | null = null;
 
 export async function getCurrentUser(): Promise<CurrentUser> {
   if (cachedUser) return cachedUser;
-  const [user] = await db.select().from(usersTable).limit(1);
+  const [user] = await db.select().from(usersTable).orderBy(usersTable.id).limit(1);
   if (!user) throw new Error("No seed user found");
   cachedUser = {
     id: user.id,
