@@ -396,6 +396,11 @@ paths:
       parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/BudgetItemInput" } } } }
       responses: { "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/BudgetItem" } } } } }
+    delete:
+      operationId: deleteBudgetItem
+      tags: [budgets]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses: { "204": { description: deleted } }
 
   /ra-bills:
     get:
@@ -415,6 +420,11 @@ paths:
       parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/RaBillUpdate" } } } }
       responses: { "200": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/RaBill" } } } } }
+    delete:
+      operationId: deleteRaBill
+      tags: [ra-bills]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses: { "204": { description: deleted } }
 
   /expenses:
     get:
@@ -638,6 +648,12 @@ paths:
       tags: [stakeholders]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StakeholderInput" } } } }
       responses: { "201": { description: ok, content: { application/json: { schema: { $ref: "#/components/schemas/Stakeholder" } } } } }
+  /stakeholders/{id}:
+    delete:
+      operationId: deleteStakeholder
+      tags: [stakeholders]
+      parameters: [{ name: id, in: path, required: true, schema: { type: integer } }]
+      responses: { "204": { description: deleted } }
 
   /communications:
     get:
@@ -722,8 +738,8 @@ components:
         avatarUrl: { type: ["string", "null"] }
         roles:
           type: array
-          items: { type: string, enum: [admin, project_manager, engineer, accountant, procurement_officer, viewer] }
-        activeRole: { type: string, enum: [admin, project_manager, engineer, accountant, procurement_officer, viewer] }
+          items: { type: string, enum: [admin, project_manager, sales_manager, engineer, accountant, procurement_officer, viewer] }
+        activeRole: { type: string, enum: [admin, project_manager, sales_manager, engineer, accountant, procurement_officer, viewer] }
     SwitchRoleRequest:
       type: object
       required: [role]

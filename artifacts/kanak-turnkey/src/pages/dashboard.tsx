@@ -3,6 +3,7 @@ import {
   useGetRecentActivity,
   useGetCurrentUser,
 } from "@workspace/api-client-react";
+import type { DashboardSummary, ActivityItem } from "@workspace/api-client-react";
 import {
   Card,
   CardContent,
@@ -53,8 +54,8 @@ const inr = (v: number) =>
 
 const lakh = (v: number) => `₹${(v / 100000).toFixed(1)}L`;
 
-type Summary = NonNullable<ReturnType<typeof useGetDashboardSummary>["data"]>;
-type Activity = NonNullable<ReturnType<typeof useGetRecentActivity>["data"]>;
+type Summary = DashboardSummary;
+type Activity = ActivityItem[];
 
 function KpiCard({
   title,

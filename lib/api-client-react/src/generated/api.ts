@@ -4154,6 +4154,84 @@ export const useUpdateBudgetItem = <
   return useMutation(getUpdateBudgetItemMutationOptions(options));
 };
 
+export const getDeleteBudgetItemUrl = (id: number) => {
+  return `/api/budget-items/${id}`;
+};
+
+export const deleteBudgetItem = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteBudgetItemUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteBudgetItemMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteBudgetItem>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteBudgetItem>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteBudgetItem"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteBudgetItem>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteBudgetItem(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteBudgetItemMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteBudgetItem>>
+>;
+
+export type DeleteBudgetItemMutationError = ErrorType<unknown>;
+
+export const useDeleteBudgetItem = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteBudgetItem>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteBudgetItem>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteBudgetItemMutationOptions(options));
+};
+
 export const getListRaBillsUrl = (params?: ListRaBillsParams) => {
   const normalizedParams = new URLSearchParams();
 
@@ -4400,6 +4478,84 @@ export const useUpdateRaBill = <
   TContext
 > => {
   return useMutation(getUpdateRaBillMutationOptions(options));
+};
+
+export const getDeleteRaBillUrl = (id: number) => {
+  return `/api/ra-bills/${id}`;
+};
+
+export const deleteRaBill = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteRaBillUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteRaBillMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRaBill>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteRaBill>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteRaBill"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteRaBill>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteRaBill(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteRaBillMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteRaBill>>
+>;
+
+export type DeleteRaBillMutationError = ErrorType<unknown>;
+
+export const useDeleteRaBill = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRaBill>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteRaBill>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteRaBillMutationOptions(options));
 };
 
 export const getListExpensesUrl = (params?: ListExpensesParams) => {
@@ -7238,6 +7394,84 @@ export const useCreateStakeholder = <
   TContext
 > => {
   return useMutation(getCreateStakeholderMutationOptions(options));
+};
+
+export const getDeleteStakeholderUrl = (id: number) => {
+  return `/api/stakeholders/${id}`;
+};
+
+export const deleteStakeholder = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteStakeholderUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteStakeholderMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStakeholder>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteStakeholder>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteStakeholder"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteStakeholder>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteStakeholder(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteStakeholderMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteStakeholder>>
+>;
+
+export type DeleteStakeholderMutationError = ErrorType<unknown>;
+
+export const useDeleteStakeholder = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStakeholder>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteStakeholder>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteStakeholderMutationOptions(options));
 };
 
 export const getListCommunicationsUrl = (params?: ListCommunicationsParams) => {

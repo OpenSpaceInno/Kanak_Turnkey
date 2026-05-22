@@ -306,6 +306,12 @@ router.post("/projects/:projectId/budget", async (req, res): Promise<void> => {
   res.status(201).json(fBudget(item!));
 });
 
+router.delete("/budget-items/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id as string, 10);
+  await db.delete(budgetItemsTable).where(eq(budgetItemsTable.id, id));
+  res.sendStatus(204);
+});
+
 router.patch("/budget-items/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string, 10);
   const b = req.body ?? {};
@@ -343,19 +349,33 @@ router.get("/ra-bills", async (req, res): Promise<void> => {
 
 router.post("/ra-bills", async (req, res): Promise<void> => {
   const b = req.body ?? {};
+  if (!b.projectId || b.amount == null) {
+    res.status(400).json({ error: "projectId and amount required" });
+    return;
+  }
   const me = await getCurrentUser();
+  const existing = await db.select().from(raBillsTable).where(eq(raBillsTable.projectId, b.projectId));
+  const seq = String(existing.length + 1).padStart(3, "0");
+  const autoNumber = `RA-${b.projectId}-${seq}`;
   const [bill] = await db
     .insert(raBillsTable)
     .values({
       projectId: b.projectId,
-      billNumber: b.billNumber,
+      billNumber: b.billNumber || autoNumber,
       description: b.description ?? null,
       amount: String(b.amount),
       milestone: b.milestone ?? null,
+      status: b.status ?? "draft",
       createdById: me.id,
     })
     .returning();
   res.status(201).json(fRa(bill!));
+});
+
+router.delete("/ra-bills/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id as string, 10);
+  await db.delete(raBillsTable).where(eq(raBillsTable.id, id));
+  res.sendStatus(204);
 });
 
 router.patch("/ra-bills/:id", async (req, res): Promise<void> => {
@@ -389,6 +409,12 @@ router.get("/stakeholders", async (req, res): Promise<void> => {
     ? await baseQuery.where(eq(stakeholdersTable.projectId, projectId))
     : await baseQuery;
   res.json(rows.map((r) => ({ ...r.s, projectName: r.p })));
+});
+
+router.delete("/stakeholders/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id as string, 10);
+  await db.delete(stakeholdersTable).where(eq(stakeholdersTable.id, id));
+  res.sendStatus(204);
 });
 
 router.post("/stakeholders", async (req, res): Promise<void> => {

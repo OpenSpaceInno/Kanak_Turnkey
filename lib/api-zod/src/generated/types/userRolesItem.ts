@@ -11,6 +11,7 @@ export type UserRolesItem = (typeof UserRolesItem)[keyof typeof UserRolesItem];
 export const UserRolesItem = {
   admin: "admin",
   project_manager: "project_manager",
+  sales_manager: "sales_manager",
   engineer: "engineer",
   accountant: "accountant",
   procurement_officer: "procurement_officer",

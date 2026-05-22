@@ -20,6 +20,7 @@ export const GetCurrentUserResponse = zod.object({
     zod.enum([
       "admin",
       "project_manager",
+      "sales_manager",
       "engineer",
       "accountant",
       "procurement_officer",
@@ -30,6 +31,7 @@ export const GetCurrentUserResponse = zod.object({
     .enum([
       "admin",
       "project_manager",
+      "sales_manager",
       "engineer",
       "accountant",
       "procurement_officer",
@@ -58,6 +60,7 @@ export const SwitchRoleResponse = zod.object({
     zod.enum([
       "admin",
       "project_manager",
+      "sales_manager",
       "engineer",
       "accountant",
       "procurement_officer",
@@ -68,6 +71,7 @@ export const SwitchRoleResponse = zod.object({
     .enum([
       "admin",
       "project_manager",
+      "sales_manager",
       "engineer",
       "accountant",
       "procurement_officer",
@@ -85,6 +89,7 @@ export const ListUsersResponseItem = zod.object({
     zod.enum([
       "admin",
       "project_manager",
+      "sales_manager",
       "engineer",
       "accountant",
       "procurement_officer",
@@ -95,6 +100,7 @@ export const ListUsersResponseItem = zod.object({
     .enum([
       "admin",
       "project_manager",
+      "sales_manager",
       "engineer",
       "accountant",
       "procurement_officer",
@@ -121,6 +127,7 @@ export const UpdateUserRolesResponse = zod.object({
     zod.enum([
       "admin",
       "project_manager",
+      "sales_manager",
       "engineer",
       "accountant",
       "procurement_officer",
@@ -131,6 +138,7 @@ export const UpdateUserRolesResponse = zod.object({
     .enum([
       "admin",
       "project_manager",
+      "sales_manager",
       "engineer",
       "accountant",
       "procurement_officer",
@@ -1363,6 +1371,10 @@ export const UpdateBudgetItemResponse = zod.object({
   committed: zod.number(),
 });
 
+export const DeleteBudgetItemParams = zod.object({
+  id: zod.coerce.number(),
+});
+
 export const ListRaBillsQueryParams = zod.object({
   projectId: zod.coerce.number().optional(),
 });
@@ -1419,6 +1431,10 @@ export const UpdateRaBillResponse = zod.object({
   status: zod.enum(["draft", "submitted", "approved", "rejected", "invoiced"]),
   createdById: zod.number().nullish(),
   createdAt: zod.coerce.date(),
+});
+
+export const DeleteRaBillParams = zod.object({
+  id: zod.coerce.number(),
 });
 
 export const ListExpensesQueryParams = zod.object({
@@ -2348,6 +2364,10 @@ export const CreateStakeholderBody = zod.object({
       zod.literal(null),
     ])
     .nullish(),
+});
+
+export const DeleteStakeholderParams = zod.object({
+  id: zod.coerce.number(),
 });
 
 export const ListCommunicationsQueryParams = zod.object({

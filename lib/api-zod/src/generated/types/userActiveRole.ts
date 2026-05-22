@@ -12,6 +12,7 @@ export type UserActiveRole =
 export const UserActiveRole = {
   admin: "admin",
   project_manager: "project_manager",
+  sales_manager: "sales_manager",
   engineer: "engineer",
   accountant: "accountant",
   procurement_officer: "procurement_officer",
