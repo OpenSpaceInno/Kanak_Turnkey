@@ -64,6 +64,11 @@ function nextStage(current: string): Stage | null {
   return idx >= 0 && idx < LIFECYCLE.length - 1 ? LIFECYCLE[idx + 1]!.key : null;
 }
 
+function prevStage(current: string): Stage | null {
+  const idx = LIFECYCLE.findIndex(s => s.key === current);
+  return idx > 0 ? LIFECYCLE[idx - 1]!.key : null;
+}
+
 const PL_STATUS: Record<string, { label: string; dot: string; badge: "default" | "secondary" | "outline" | "destructive" }> = {
   open:        { label: "Open",        dot: "bg-destructive",      badge: "destructive" },
   in_progress: { label: "In Progress", dot: "bg-amber-500",        badge: "secondary" },
@@ -853,8 +858,10 @@ export default function ProjectDetail() {
   const delStakeholder = useDeleteStakeholder();
   const delRaBill      = useDeleteRaBill();
 
-  const [activeTab, setActiveTab]   = useState("overview");
+  const [activeTab, setActiveTab]     = useState("overview");
   const [advanceOpen, setAdvanceOpen] = useState(false);
+  const [revertOpen, setRevertOpen]   = useState(false);
+  const [revertTarget, setRevertTarget] = useState<Stage | null>(null);
   const [punchOpen, setPunchOpen]   = useState(false);
   const [punchForm, setPunchForm]   = useState({ title: "", description: "", category: "general", priority: "medium", dueDate: "" });
   const [applyOpen, setApplyOpen]   = useState(false);
@@ -888,6 +895,7 @@ export default function ProjectDetail() {
 
   const currentStageIdx = LIFECYCLE.findIndex(s => s.key === typedProject.status);
   const next = nextStage(typedProject.status);
+  const prev = prevStage(typedProject.status);
 
   const invalidateAll = async () => {
     await Promise.all([
@@ -906,6 +914,15 @@ export default function ProjectDetail() {
     await qc.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
     setAdvanceOpen(false);
     toast({ title: `Stage advanced to ${LIFECYCLE.find(s => s.key === next)?.label}` });
+  };
+
+  const handleRevert = async () => {
+    if (!revertTarget) return;
+    await updateProject.mutateAsync({ id: projectId, data: { name: typedProject.name, status: revertTarget } as Parameters<typeof updateProject.mutateAsync>[0]["data"] });
+    await qc.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
+    setRevertOpen(false);
+    setRevertTarget(null);
+    toast({ title: `Stage reverted to ${LIFECYCLE.find(s => s.key === revertTarget)?.label}` });
   };
 
   const handleCreatePunch = async () => {
@@ -985,6 +1002,37 @@ export default function ProjectDetail() {
         </div>
         <div className="flex gap-2 shrink-0">
           <EditProjectDialog project={typedProject} projectId={projectId} onSuccess={() => qc.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) })} />
+
+          {/* ── Revert dialog (opened from stepper or back button) ── */}
+          <Dialog open={revertOpen} onOpenChange={open => { setRevertOpen(open); if (!open) setRevertTarget(null); }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Revert Project Stage</DialogTitle>
+                <DialogDescription>
+                  Move back from <strong>{LIFECYCLE[currentStageIdx]?.label}</strong> to{" "}
+                  <strong>{LIFECYCLE.find(s => s.key === revertTarget)?.label}</strong>?
+                  <span className="block mt-2 text-muted-foreground text-sm">
+                    All data recorded in skipped stages will be preserved.
+                  </span>
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => { setRevertOpen(false); setRevertTarget(null); }}>Cancel</Button>
+                <Button variant="destructive" onClick={handleRevert} disabled={updateProject.isPending}>
+                  {updateProject.isPending ? "Reverting…" : "Revert Stage"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* ── Back one stage ── */}
+          {prev && (
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setRevertTarget(prev); setRevertOpen(true); }}>
+              <ArrowRight className="h-3.5 w-3.5 rotate-180" />
+              {LIFECYCLE.find(s => s.key === prev)?.label}
+            </Button>
+          )}
+
           {next && (
             <Dialog open={advanceOpen} onOpenChange={setAdvanceOpen}>
               <DialogTrigger asChild>
@@ -1090,23 +1138,34 @@ export default function ProjectDetail() {
                   return (
                     <li key={stage.key} className="flex gap-3">
                       <div className="flex flex-col items-center">
-                        <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold
-                          ${done    ? "bg-primary text-primary-foreground" : ""}
-                          ${current ? "bg-amber-500 text-white ring-2 ring-amber-500/30" : ""}
-                          ${future  ? "bg-muted text-muted-foreground" : ""}
-                        `}>
+                        <div
+                          title={done ? `Revert to ${stage.label}` : undefined}
+                          onClick={done ? () => { setRevertTarget(stage.key as Stage); setRevertOpen(true); } : undefined}
+                          className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold transition-opacity
+                            ${done    ? "bg-primary text-primary-foreground cursor-pointer hover:opacity-70" : ""}
+                            ${current ? "bg-amber-500 text-white ring-2 ring-amber-500/30" : ""}
+                            ${future  ? "bg-muted text-muted-foreground" : ""}
+                          `}>
                           {done ? <CheckCheck className="h-3.5 w-3.5" /> : i + 1}
                         </div>
                         {i < LIFECYCLE.length - 1 && (
                           <div className={`w-0.5 flex-1 my-1 min-h-[12px] ${done ? "bg-primary" : "bg-border"}`} />
                         )}
                       </div>
-                      <div className="pb-3 min-w-0">
-                        <div className={`text-xs font-semibold leading-6 ${current ? "text-amber-600" : done ? "text-foreground" : "text-muted-foreground"}`}>
+                      <div
+                        className={`pb-3 min-w-0 ${done ? "cursor-pointer group" : ""}`}
+                        onClick={done ? () => { setRevertTarget(stage.key as Stage); setRevertOpen(true); } : undefined}
+                      >
+                        <div className={`text-xs font-semibold leading-6
+                          ${current ? "text-amber-600" : done ? "text-foreground group-hover:text-primary group-hover:underline" : "text-muted-foreground"}
+                        `}>
                           {stage.label}
                         </div>
                         {(current || done) && (
                           <div className="text-[10px] text-muted-foreground leading-tight">{stage.desc}</div>
+                        )}
+                        {done && (
+                          <div className="text-[10px] text-primary/60 leading-tight opacity-0 group-hover:opacity-100 transition-opacity">Click to revert here</div>
                         )}
                       </div>
                     </li>
