@@ -74,3 +74,4 @@ npm run dev
 ```
 - API Server runs on [http://localhost:3000](http://localhost:3000)
 - Web UI runs on [http://localhost:5173](http://localhost:5173)
+

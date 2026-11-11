@@ -96,3 +96,4 @@ When deploying with HTTPS behind a reverse proxy (Nginx, Traefik, AWS ALB, Cloud
 | `npm run typecheck` | Validates TypeScript across all libraries and applications |
 | `npm run db:test` | Tests MySQL and PostgreSQL connections and lists tables |
 | `npm run db:mysql:setup` | Creates the `kanak_turnkey` database and seeds MySQL |
+

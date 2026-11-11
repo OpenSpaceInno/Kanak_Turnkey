@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for Kanak Turnkey API Server
-FROM node:20-alpine AS builder
+FROM node:20-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -12,6 +12,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 # Copy all package.json files for workspace dependency resolution
 COPY artifacts/api-server/package.json ./artifacts/api-server/
 COPY artifacts/kanak-turnkey/package.json ./artifacts/kanak-turnkey/
+COPY artifacts/mockup-sandbox/package.json ./artifacts/mockup-sandbox/
 COPY lib/db/package.json ./lib/db/
 COPY lib/api-client-react/package.json ./lib/api-client-react/
 COPY lib/api-spec/package.json ./lib/api-spec/
@@ -31,12 +32,12 @@ COPY artifacts/api-server/ ./artifacts/api-server/
 RUN pnpm --filter @workspace/api-server run build
 
 # Production runtime stage
-FROM node:20-alpine AS runner
+FROM node:20-bookworm-slim AS runner
 
 WORKDIR /app
 
-# Install curl for container health check
-RUN apk add --no-cache curl
+# Install curl for health check
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production \
     PORT=3000
