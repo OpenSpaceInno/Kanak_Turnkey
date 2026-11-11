@@ -49,6 +49,7 @@ const corsOptions: CorsOptions = {
     "Content-Type",
     "Authorization",
     "X-Requested-With",
+    "X-User-Id",
     "Accept",
     "Origin",
     "X-Custom-Header",
