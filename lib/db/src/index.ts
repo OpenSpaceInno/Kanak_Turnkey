@@ -190,6 +190,19 @@ const isPostgres = DATABASE_URL.startsWith("postgres://") || DATABASE_URL.starts
 let db: any;
 let pool: any = null;
 
+async function waitForPostgres(pool: any, retries = 10, delayMs = 2000) {
+  for (let i = 1; i <= retries; i++) {
+    try {
+      await pool.query("SELECT 1");
+      return;
+    } catch (err: any) {
+      if (i === retries) throw err;
+      console.log(`⏳ Waiting for PostgreSQL (${i}/${retries}): ${err?.message || err}`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
 if (isPostgres) {
   // PostgreSQL setup (Docker PostgreSQL, Supabase, or external PG)
   const { drizzle: pgDrizzle } = await import("drizzle-orm/node-postgres");
@@ -197,6 +210,7 @@ if (isPostgres) {
   const { Pool } = pg.default;
 
   pool = new Pool({ connectionString: DATABASE_URL });
+  await waitForPostgres(pool);
   await initializeSchema(
     (sql) => pool.query(sql),
     (sql) => pool.query(sql),
