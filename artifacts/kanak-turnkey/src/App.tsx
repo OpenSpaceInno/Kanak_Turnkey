@@ -2,15 +2,21 @@ import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AppLayout } from "@/components/layout/AppLayout";
+import { AdaptiveLayoutController } from "@/components/layout/AdaptiveLayoutController";
+import { useMobileMode } from "@/hooks/useMobileMode";
 import NotFound from "@/pages/not-found";
 
 import Dashboard from "@/pages/dashboard";
+import MobileHomePage from "@/pages/mobile/MobileHomePage";
+import Projects from "@/pages/projects/index";
+import MobileProjectsPage from "@/pages/mobile/MobileProjectsPage";
+import Tasks from "@/pages/tasks/index";
+import MobileApprovalsPage from "@/pages/mobile/MobileApprovalsPage";
+
 import Leads from "@/pages/leads/index";
 import LeadDetail from "@/pages/leads/[id]";
-import Projects from "@/pages/projects/index";
 import ProjectDetail from "@/pages/projects/[id]";
-import Tasks from "@/pages/tasks/index";
+import TaskTemplates from "@/pages/task-templates/index";
 import Finance from "@/pages/finance/index";
 import ClientARPage from "@/pages/finance/client-ar";
 import VendorAPPage from "@/pages/finance/vendor-ap";
@@ -24,27 +30,61 @@ import Notifications from "@/pages/notifications/index";
 import AuditLogs from "@/pages/audit-logs/index";
 import Admin from "@/pages/admin/index";
 import Settings from "@/pages/settings/index";
-import TaskTemplates from "@/pages/task-templates/index";
 import LoginPage from "@/pages/login";
 
 const queryClient = new QueryClient();
+
+function AdaptiveRoute({
+  desktopComponent: DesktopComp,
+  mobileComponent: MobileComp,
+}: {
+  desktopComponent: React.ComponentType<any>;
+  mobileComponent?: React.ComponentType<any>;
+}) {
+  const { isMobileMode } = useMobileMode();
+  if (isMobileMode && MobileComp) {
+    return <MobileComp />;
+  }
+  return <DesktopComp />;
+}
 
 function Router() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
       <Route>
-        <AppLayout>
+        <AdaptiveLayoutController>
           <Switch>
-            <Route path="/" component={Dashboard} />
+            <Route path="/">
+              {() => (
+                <AdaptiveRoute
+                  desktopComponent={Dashboard}
+                  mobileComponent={MobileHomePage}
+                />
+              )}
+            </Route>
             
             <Route path="/leads" component={Leads} />
             <Route path="/leads/:id" component={LeadDetail} />
             
-            <Route path="/projects" component={Projects} />
+            <Route path="/projects">
+              {() => (
+                <AdaptiveRoute
+                  desktopComponent={Projects}
+                  mobileComponent={MobileProjectsPage}
+                />
+              )}
+            </Route>
             <Route path="/projects/:id" component={ProjectDetail} />
             
-            <Route path="/tasks" component={Tasks} />
+            <Route path="/tasks">
+              {() => (
+                <AdaptiveRoute
+                  desktopComponent={Tasks}
+                  mobileComponent={MobileApprovalsPage}
+                />
+              )}
+            </Route>
             <Route path="/task-templates" component={TaskTemplates} />
             <Route path="/finance/ar" component={ClientARPage} />
             <Route path="/finance/ap" component={VendorAPPage} />
@@ -62,7 +102,7 @@ function Router() {
             
             <Route component={NotFound} />
           </Switch>
-        </AppLayout>
+        </AdaptiveLayoutController>
       </Route>
     </Switch>
   );

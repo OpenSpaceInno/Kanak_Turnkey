@@ -19,7 +19,6 @@ import {
 } from "@workspace/db";
 import { numKeys, num } from "../lib/transforms";
 import { getCurrentUser } from "../lib/session";
-import { gateInProduction } from "../lib/auth-middleware";
 
 const router: IRouter = Router();
 
@@ -743,144 +742,140 @@ router.post("/leads/:id/convert", async (req, res): Promise<void> => {
   const projectBudget =
     budgetFromBoq ?? num(lead.budgetEstimate as unknown) ?? null;
 
-  // Execute conversion in an atomic transaction
-  const project = await db.transaction(async (tx) => {
-    // 1. Create the project.
-    const [newProject] = await tx
-      .insert(projectsTable)
-      .values({
-        name: projectName,
-        type: lead.projectType ?? null,
-        location: lead.location ?? null,
-        clientName: (lead.company as string | null) ?? lead.customerName,
-        startDate: startDateStr,
-        endDate: endDateStr,
-        budget: projectBudget != null ? String(projectBudget) : null,
-        description: `Converted from lead ${lead.leadNumber}.`,
-        status: "planning",
-        progress: 0,
-        teamSize: null,
-        createdById: me.id,
-      })
-      .returning();
-    if (!newProject) {
-      throw new Error("Failed to create project");
-    }
+  // 1. Create the project.
+  const [project] = await db
+    .insert(projectsTable)
+    .values({
+      name: projectName,
+      type: lead.projectType ?? null,
+      location: lead.location ?? null,
+      clientName: (lead.company as string | null) ?? lead.customerName,
+      startDate: startDateStr,
+      endDate: endDateStr,
+      budget: projectBudget != null ? String(projectBudget) : null,
+      description: `Converted from lead ${lead.leadNumber}.`,
+      status: "planning",
+      progress: 0,
+      teamSize: null,
+      createdById: me.id,
+    })
+    .returning();
+  if (!project) {
+    res.status(500).json({ error: "Failed to create project" });
+    return;
+  }
 
-    // 2. Add the lead's customer as the primary client stakeholder.
-    await tx.insert(stakeholdersTable).values({
-      projectId: newProject.id,
-      name: lead.customerName,
-      email: (lead.contactEmail as string | null) ?? null,
-      phone: (lead.contactPhone as string | null) ?? null,
-      organization: (lead.company as string | null) ?? null,
-      role: "Client",
-      accessLevel: "read",
-    });
+  // 2. Add the lead's customer as the primary client stakeholder.
+  await db.insert(stakeholdersTable).values({
+    projectId: project.id,
+    name: lead.customerName,
+    email: (lead.contactEmail as string | null) ?? null,
+    phone: (lead.contactPhone as string | null) ?? null,
+    organization: (lead.company as string | null) ?? null,
+    role: "Client",
+    accessLevel: "read",
+  });
 
-    // 3. Seed budget items from the latest BOQ items if any, else a single line.
-    if (latestBoq) {
-      const items = await tx
-        .select()
-        .from(boqItemsTable)
-        .where(eq(boqItemsTable.boqId, latestBoq.id));
-      if (items.length) {
-        // Group BOQ items by category (or "General") and budget the total.
-        const grouped = new Map<string, number>();
-        for (const it of items) {
-          const cat = ((it.category as string | null) ?? "General").trim();
-          const amt = num(it.totalPrice) ?? 0;
-          grouped.set(cat, (grouped.get(cat) ?? 0) + amt);
-        }
-        let i = 1;
-        for (const [cat, total] of grouped) {
-          await tx.insert(budgetItemsTable).values({
-            projectId: newProject.id,
-            costCode: `BOQ-${String(i).padStart(3, "0")}`,
-            description: cat,
-            budgeted: total.toFixed(2),
-            actual: "0",
-            committed: "0",
-          });
-          i += 1;
-        }
-      } else if (projectBudget != null) {
-        await tx.insert(budgetItemsTable).values({
-          projectId: newProject.id,
-          costCode: "BOQ-001",
-          description: "Project total (from BOQ)",
-          budgeted: projectBudget.toFixed(2),
+  // 3. Seed budget items from the latest BOQ items if any, else a single line.
+  if (latestBoq) {
+    const items = await db
+      .select()
+      .from(boqItemsTable)
+      .where(eq(boqItemsTable.boqId, latestBoq.id));
+    if (items.length) {
+      // Group BOQ items by category (or "General") and budget the total.
+      const grouped = new Map<string, number>();
+      for (const it of items) {
+        const cat = ((it.category as string | null) ?? "General").trim();
+        const amt = num(it.totalPrice) ?? 0;
+        grouped.set(cat, (grouped.get(cat) ?? 0) + amt);
+      }
+      let i = 1;
+      for (const [cat, total] of grouped) {
+        await db.insert(budgetItemsTable).values({
+          projectId: project.id,
+          costCode: `BOQ-${String(i).padStart(3, "0")}`,
+          description: cat,
+          budgeted: total.toFixed(2),
           actual: "0",
           committed: "0",
         });
+        i += 1;
       }
     } else if (projectBudget != null) {
-      await tx.insert(budgetItemsTable).values({
-        projectId: newProject.id,
-        costCode: "EST-001",
-        description: "Initial estimate (from lead)",
+      await db.insert(budgetItemsTable).values({
+        projectId: project.id,
+        costCode: "BOQ-001",
+        description: "Project total (from BOQ)",
         budgeted: projectBudget.toFixed(2),
         actual: "0",
         committed: "0",
       });
     }
-
-    // 4. Seed the lifecycle of tasks.
-    for (const tpl of PROJECT_LIFECYCLE) {
-      const taskStart = addDays(startBase, tpl.startOffset);
-      const taskEnd = addDays(startBase, tpl.startOffset + tpl.durationDays);
-      await tx.insert(tasksTable).values({
-        projectId: newProject.id,
-        title: tpl.title,
-        description: `[${tpl.phase}] ${tpl.description}`,
-        assignedToId: null,
-        startDate: taskStart,
-        endDate: taskEnd,
-        priority: "medium",
-        status: "todo",
-        progress: 0,
-        parentTaskId: null,
-        createdById: me.id,
-      });
-    }
-
-    // 5. Mark the lead as won and link to the new project.
-    await tx
-      .update(leadsTable)
-      .set({
-        status: "won",
-        stage: "finalization",
-        wonProjectId: newProject.id,
-      })
-      .where(eq(leadsTable.id, lead.id));
-
-    // 6. Audit log + notification.
-    await tx.insert(auditLogsTable).values({
-      userId: me.id,
-      activity: `Converted lead ${lead.leadNumber} → project ${newProject.name}`,
-      resourceType: "project",
-      resourceId: newProject.id,
-      status: "success",
-      metadata: JSON.stringify({
-        leadId: lead.id,
-        leadNumber: lead.leadNumber,
-        projectId: newProject.id,
-      }),
+  } else if (projectBudget != null) {
+    await db.insert(budgetItemsTable).values({
+      projectId: project.id,
+      costCode: "EST-001",
+      description: "Initial estimate (from lead)",
+      budgeted: projectBudget.toFixed(2),
+      actual: "0",
+      committed: "0",
     });
-    await tx.insert(notificationsTable).values({
-      userId: lead.ownerId ?? me.id,
-      notificationType: "project_created",
-      title: "Lead converted to project",
-      message: `${lead.customerName} (${lead.leadNumber}) is now project "${newProject.name}". A ${PROJECT_LIFECYCLE.length}-step lifecycle has been seeded.`,
-    });
+  }
 
-    return newProject;
+  // 4. Seed the lifecycle of tasks.
+  for (const tpl of PROJECT_LIFECYCLE) {
+    const taskStart = addDays(startBase, tpl.startOffset);
+    const taskEnd = addDays(startBase, tpl.startOffset + tpl.durationDays);
+    await db.insert(tasksTable).values({
+      projectId: project.id,
+      title: tpl.title,
+      description: `[${tpl.phase}] ${tpl.description}`,
+      assignedToId: null,
+      startDate: taskStart,
+      endDate: taskEnd,
+      priority: "medium",
+      status: "todo",
+      progress: 0,
+      parentTaskId: null,
+      createdById: me.id,
+    });
+  }
+
+  // 5. Mark the lead as won and link to the new project.
+  await db
+    .update(leadsTable)
+    .set({
+      status: "won",
+      stage: "finalization",
+      wonProjectId: project.id,
+    })
+    .where(eq(leadsTable.id, lead.id));
+
+  // 6. Audit log + notification.
+  await db.insert(auditLogsTable).values({
+    userId: me.id,
+    activity: `Converted lead ${lead.leadNumber} → project ${project.name}`,
+    resourceType: "project",
+    resourceId: project.id,
+    status: "success",
+    metadata: JSON.stringify({
+      leadId: lead.id,
+      leadNumber: lead.leadNumber,
+      projectId: project.id,
+    }),
+  });
+  await db.insert(notificationsTable).values({
+    userId: lead.ownerId ?? me.id,
+    notificationType: "project_created",
+    title: "Lead converted to project",
+    message: `${lead.customerName} (${lead.leadNumber}) is now project "${project.name}". A ${PROJECT_LIFECYCLE.length}-step lifecycle has been seeded.`,
   });
 
   res.status(201).json(numKeys(project, ["budget"]));
 });
 
-router.post("/leads/ensure-seed", gateInProduction, async (_req, res): Promise<void> => {
+router.post("/leads/ensure-seed", async (_req, res): Promise<void> => {
   const { ensurePreConstructionSeed } = await import("../seed");
   await ensurePreConstructionSeed();
   res.json({ success: true, message: "Pre-construction pipeline seed ensured" });

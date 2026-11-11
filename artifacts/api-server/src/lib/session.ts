@@ -22,7 +22,7 @@ export async function getCurrentUser(userIdOverride?: number | string | null): P
     if (!Number.isNaN(numId) && numId > 0) {
       const [user] = await db.select().from(usersTable).where(eq(usersTable.id, numId)).limit(1);
       if (user) {
-        cachedUser = {
+        return {
           id: user.id,
           email: user.email,
           name: user.name,
@@ -34,7 +34,6 @@ export async function getCurrentUser(userIdOverride?: number | string | null): P
           department: user.department ?? null,
           status: user.status ?? "active",
         };
-        return cachedUser;
       }
     }
   }
@@ -63,8 +62,11 @@ export async function setActiveRole(role: string, userIdOverride?: number | stri
     .update(usersTable)
     .set({ activeRole: role })
     .where(eq(usersTable.id, current.id));
-  cachedUser = { ...current, activeRole: role };
-  return cachedUser;
+  const updated = { ...current, activeRole: role };
+  if (!userIdOverride || Number(userIdOverride) === 1) {
+    cachedUser = updated;
+  }
+  return updated;
 }
 
 export function clearUserCache() {
