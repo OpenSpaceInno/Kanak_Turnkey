@@ -132,3 +132,4 @@ export function MobileProjectCard({ project, onQuickAction }: MobileProjectCardP
     </Card>
   );
 }
+

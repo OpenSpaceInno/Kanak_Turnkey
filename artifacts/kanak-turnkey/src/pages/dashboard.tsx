@@ -19,6 +19,10 @@ import { PMCommandHub } from "@/components/dashboard/PMCommandHub";
 import { SupervisorFieldHub } from "@/components/dashboard/SupervisorFieldHub";
 import { StorekeeperFieldHub } from "@/components/dashboard/StorekeeperFieldHub";
 import { SubcontractorPortalHub } from "@/components/dashboard/SubcontractorPortalHub";
+import { AccountantCommandHub } from "@/components/dashboard/AccountantCommandHub";
+import { SalesCommandHub } from "@/components/dashboard/SalesCommandHub";
+import { ProcurementCommandHub } from "@/components/dashboard/ProcurementCommandHub";
+import { ViewerCommandHub } from "@/components/dashboard/ViewerCommandHub";
 import {
   BarChart,
   Bar,
@@ -614,205 +618,125 @@ export default function Dashboard() {
   const userExt = user as any;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Personalized Welcome & Role Command Strip */}
-      <div className="relative overflow-hidden rounded-xl border bg-gradient-to-r from-card via-card to-primary/5 p-6 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5" />
-                Live Operational Perspective
-              </span>
-              <span className="text-muted-foreground/40">•</span>
-              <span className="text-xs text-muted-foreground">
-                {format(new Date(), "EEEE, MMMM d, yyyy")}
-              </span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
-              Welcome back, {user?.name?.split(" ")[0] || "User"}!
-            </h1>
-            <p className="text-sm text-muted-foreground max-w-2xl">
-              Operating as <strong className="text-foreground font-medium">{userExt?.designation || role.replace("_", " ")}</strong>. {subtitle}
-            </p>
-          </div>
+    <div className="space-y-6 w-full animate-in fade-in duration-500 pb-10">
+      {role === "admin" && (
+        <>
+          {/* Personalized Executive Command Strip */}
+          <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-r from-slate-900 via-slate-800 to-purple-950 text-white p-5 sm:p-6 shadow-md border-slate-800">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Executive Leadership Perspective
+                  </span>
+                  <span className="text-slate-500">•</span>
+                  <span className="text-xs text-slate-300">
+                    {format(new Date(), "EEEE, MMMM d, yyyy")}
+                  </span>
+                </div>
+                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white">
+                  Welcome back, {user?.name?.split(" ")[0] || "Director"}!
+                </h1>
+                <p className="text-xs sm:text-sm text-slate-300 max-w-2xl">
+                  Full operations command center & multi-role field governance. Inspect real-time project metrics, financial status, and field workflows.
+                </p>
+              </div>
 
-          <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
-            {role === "admin" && (
-              <>
+              <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
                 <Link href="/leads">
-                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-9">
-                    <FileCheck className="h-3.5 w-3.5 text-primary" />
+                  <Button size="sm" variant="outline" className="bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 gap-1.5 text-xs h-9">
+                    <FileCheck className="h-3.5 w-3.5 text-purple-400" />
                     New Lead
                   </Button>
                 </Link>
                 <Link href="/finance/ar">
-                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-9">
-                    <Receipt className="h-3.5 w-3.5 text-amber-600" />
+                  <Button size="sm" variant="outline" className="bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 gap-1.5 text-xs h-9">
+                    <Receipt className="h-3.5 w-3.5 text-amber-400" />
                     Client Billing
                   </Button>
                 </Link>
                 <Link href="/settings">
-                  <Button size="sm" className="gap-1.5 text-xs h-9">
+                  <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5 text-xs h-9">
                     <Settings className="h-3.5 w-3.5" />
                     System Settings
                   </Button>
                 </Link>
-              </>
-            )}
-
-            {role === "project_manager" && (
-              <>
-                <Link href="/tasks">
-                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-9">
-                    <CheckSquare className="h-3.5 w-3.5 text-primary" />
-                    Site Tasks
-                  </Button>
-                </Link>
-                <Link href="/projects/1">
-                  <Button size="sm" className="gap-1.5 text-xs h-9">
-                    <HardHat className="h-3.5 w-3.5" />
-                    Log Site DPR
-                  </Button>
-                </Link>
-              </>
-            )}
-
-            {role === "engineer" && (
-              <>
-                <Link href="/projects/1">
-                  <Button size="sm" className="gap-1.5 text-xs h-9">
-                    <HardHat className="h-3.5 w-3.5" />
-                    Daily Site DPR
-                  </Button>
-                </Link>
-                <Link href="/procurement/stock">
-                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-9">
-                    <ShoppingCart className="h-3.5 w-3.5 text-teal-600" />
-                    Indent Materials
-                  </Button>
-                </Link>
-              </>
-            )}
-
-            {role === "accountant" && (
-              <>
-                <Link href="/finance/ar">
-                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-9">
-                    <Receipt className="h-3.5 w-3.5 text-amber-600" />
-                    Generate RA Bill
-                  </Button>
-                </Link>
-                <Link href="/finance/ap">
-                  <Button size="sm" className="gap-1.5 text-xs h-9">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    Vendor 3-Way Match
-                  </Button>
-                </Link>
-              </>
-            )}
-
-            {role === "procurement_officer" && (
-              <>
-                <Link href="/procurement/orders">
-                  <Button size="sm" className="gap-1.5 text-xs h-9">
-                    <ShoppingCart className="h-3.5 w-3.5" />
-                    Manage RFQs & POs
-                  </Button>
-                </Link>
-                <Link href="/procurement/stock">
-                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-9">
-                    <Warehouse className="h-3.5 w-3.5 text-primary" />
-                    Stock Buffer Levels
-                  </Button>
-                </Link>
-              </>
-            )}
-
-            {role === "sales_manager" && (
-              <>
-                <Link href="/leads">
-                  <Button size="sm" className="gap-1.5 text-xs h-9">
-                    <FileCheck className="h-3.5 w-3.5" />
-                    Register Inquiry
-                  </Button>
-                </Link>
-              </>
-            )}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {role === "project_manager" && (
-        <PMCommandHub />
-      )}
-      {role === "engineer" && (
-        <EngineerFieldHub />
-      )}
-      {role === "supervisor" && (
-        <SupervisorFieldHub />
-      )}
-      {role === "storekeeper" && (
-        <StorekeeperFieldHub />
-      )}
-      {role === "subcontractor" && (
-        <SubcontractorPortalHub />
-      )}
-      {role === "admin" && (
-        <Tabs defaultValue="executive" className="space-y-4">
-          <TabsList className="bg-muted/70 p-1 rounded-xl border border-border/80 flex-wrap h-auto gap-1">
-            <TabsTrigger value="executive" className="gap-1.5 text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5" /> Executive Command
-            </TabsTrigger>
-            <TabsTrigger value="pm_hub" className="gap-1.5 text-xs font-bold">
-              <Briefcase className="w-3.5 h-3.5" /> PM Portfolio
-            </TabsTrigger>
-            <TabsTrigger value="field_ops" className="gap-1.5 text-xs font-bold">
-              <HardHat className="w-3.5 h-3.5" /> Site Engineer
-            </TabsTrigger>
-            <TabsTrigger value="supervisor_hub" className="gap-1.5 text-xs font-bold">
-              <Users className="w-3.5 h-3.5" /> Supervisor Muster
-            </TabsTrigger>
-            <TabsTrigger value="storekeeper_hub" className="gap-1.5 text-xs font-bold">
-              <Warehouse className="w-3.5 h-3.5" /> Storekeeper
-            </TabsTrigger>
-            <TabsTrigger value="subcontractor_hub" className="gap-1.5 text-xs font-bold">
-              <CheckSquare className="w-3.5 h-3.5" /> Subcontractor
-            </TabsTrigger>
-          </TabsList>
+          <Tabs defaultValue="executive" className="space-y-4">
+            <TabsList className="bg-muted/70 p-1 rounded-xl border border-border/80 flex-wrap h-auto gap-1">
+              <TabsTrigger value="executive" className="gap-1.5 text-xs font-bold">
+                <Sparkles className="w-3.5 h-3.5" /> Executive Command
+              </TabsTrigger>
+              <TabsTrigger value="pm_hub" className="gap-1.5 text-xs font-bold">
+                <Briefcase className="w-3.5 h-3.5 text-blue-600" /> PM Portfolio
+              </TabsTrigger>
+              <TabsTrigger value="finance_hub" className="gap-1.5 text-xs font-bold">
+                <Receipt className="w-3.5 h-3.5 text-amber-600" /> Finance (AR/AP)
+              </TabsTrigger>
+              <TabsTrigger value="procurement_hub" className="gap-1.5 text-xs font-bold">
+                <ShoppingCart className="w-3.5 h-3.5 text-teal-600" /> Procurement
+              </TabsTrigger>
+              <TabsTrigger value="sales_hub" className="gap-1.5 text-xs font-bold">
+                <Target className="w-3.5 h-3.5 text-indigo-600" /> Sales Funnel
+              </TabsTrigger>
+              <TabsTrigger value="field_ops" className="gap-1.5 text-xs font-bold">
+                <HardHat className="w-3.5 h-3.5 text-emerald-600" /> Site Engineer
+              </TabsTrigger>
+              <TabsTrigger value="supervisor_hub" className="gap-1.5 text-xs font-bold">
+                <Users className="w-3.5 h-3.5 text-amber-600" /> Supervisor
+              </TabsTrigger>
+              <TabsTrigger value="storekeeper_hub" className="gap-1.5 text-xs font-bold">
+                <Warehouse className="w-3.5 h-3.5 text-indigo-600" /> Storekeeper
+              </TabsTrigger>
+              <TabsTrigger value="subcontractor_hub" className="gap-1.5 text-xs font-bold">
+                <CheckSquare className="w-3.5 h-3.5 text-orange-600" /> Subcontractor
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="executive" className="space-y-6">
-            <AdminDashboard summary={summary} activity={activity} />
-          </TabsContent>
-          <TabsContent value="pm_hub">
-            <PMCommandHub />
-          </TabsContent>
-          <TabsContent value="field_ops">
-            <EngineerFieldHub />
-          </TabsContent>
-          <TabsContent value="supervisor_hub">
-            <SupervisorFieldHub />
-          </TabsContent>
-          <TabsContent value="storekeeper_hub">
-            <StorekeeperFieldHub />
-          </TabsContent>
-          <TabsContent value="subcontractor_hub">
-            <SubcontractorPortalHub />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="executive" className="space-y-6">
+              <AdminDashboard summary={summary} activity={activity} />
+            </TabsContent>
+            <TabsContent value="pm_hub">
+              <PMCommandHub />
+            </TabsContent>
+            <TabsContent value="finance_hub">
+              <AccountantCommandHub />
+            </TabsContent>
+            <TabsContent value="procurement_hub">
+              <ProcurementCommandHub />
+            </TabsContent>
+            <TabsContent value="sales_hub">
+              <SalesCommandHub />
+            </TabsContent>
+            <TabsContent value="field_ops">
+              <EngineerFieldHub />
+            </TabsContent>
+            <TabsContent value="supervisor_hub">
+              <SupervisorFieldHub />
+            </TabsContent>
+            <TabsContent value="storekeeper_hub">
+              <StorekeeperFieldHub />
+            </TabsContent>
+            <TabsContent value="subcontractor_hub">
+              <SubcontractorPortalHub />
+            </TabsContent>
+          </Tabs>
+        </>
       )}
-      {role === "sales_manager" && (
-        <SalesDashboard summary={summary} activity={activity} />
-      )}
-      {role === "accountant" && (
-        <AccountantDashboard summary={summary} activity={activity} />
-      )}
-      {role === "procurement_officer" && (
-        <ProcurementDashboard summary={summary} activity={activity} />
-      )}
-      {role === "viewer" && (
-        <ViewerDashboard summary={summary} activity={activity} />
-      )}
+
+      {role === "project_manager" && <PMCommandHub />}
+      {role === "engineer" && <EngineerFieldHub />}
+      {role === "supervisor" && <SupervisorFieldHub />}
+      {role === "storekeeper" && <StorekeeperFieldHub />}
+      {role === "subcontractor" && <SubcontractorPortalHub />}
+      {role === "accountant" && <AccountantCommandHub />}
+      {role === "sales_manager" && <SalesCommandHub />}
+      {role === "procurement_officer" && <ProcurementCommandHub />}
+      {role === "viewer" && <ViewerCommandHub />}
     </div>
   );
 }

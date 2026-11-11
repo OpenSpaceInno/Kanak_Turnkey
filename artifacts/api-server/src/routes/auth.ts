@@ -39,7 +39,8 @@ router.post("/auth/login", loginRateLimiter, async (req, res): Promise<void> => 
   let user;
   if (userId) {
     [user] = await db.select().from(usersTable).where(eq(usersTable.id, Number(userId))).limit(1);
-  } else if (email) {
+  }
+  if (!user && email) {
     [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.trim().toLowerCase())).limit(1);
   }
 

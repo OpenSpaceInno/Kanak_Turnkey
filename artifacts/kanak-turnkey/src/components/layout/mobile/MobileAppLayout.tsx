@@ -92,3 +92,4 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
     </div>
   );
 }
+

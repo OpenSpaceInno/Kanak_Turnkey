@@ -178,7 +178,7 @@ export function PMCommandHub() {
   const totalApprovalsCount = approvals?.totalCount || 0;
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-10">
+    <div className="space-y-6 w-full pb-10">
       {/* ── 1. Portfolio Command Banner ── */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-5 sm:p-6 border border-slate-800 shadow-md">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

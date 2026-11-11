@@ -70,7 +70,7 @@ const DEMO_USERS: DemoUser[] = [
     badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
   },
   {
-    id: 8,
+    id: 67,
     name: "Rajesh Verma",
     email: "rajesh.verma@kanak.in",
     role: "supervisor",
@@ -80,7 +80,7 @@ const DEMO_USERS: DemoUser[] = [
     badgeColor: "bg-amber-100 text-amber-800 border-amber-300",
   },
   {
-    id: 9,
+    id: 68,
     name: "Dinesh Patel",
     email: "dinesh.patel@kanak.in",
     role: "storekeeper",
@@ -90,7 +90,7 @@ const DEMO_USERS: DemoUser[] = [
     badgeColor: "bg-teal-100 text-teal-800 border-teal-300",
   },
   {
-    id: 10,
+    id: 69,
     name: "Apex Engineering (Suresh Nair)",
     email: "apex.mep@turnkeypartners.com",
     role: "subcontractor",
@@ -197,7 +197,7 @@ export default function LoginPage() {
   const handleQuickPersonaSelect = (user: DemoUser) => {
     setEmail(user.email);
     setPassword("Kanak@123");
-    executeLogin({ userId: user.id });
+    executeLogin({ userId: user.id, email: user.email, password: "Kanak@123" });
   };
 
   return (

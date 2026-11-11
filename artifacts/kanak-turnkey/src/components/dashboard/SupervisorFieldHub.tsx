@@ -168,11 +168,11 @@ export function SupervisorFieldHub() {
   };
 
   return (
-    <div className="space-y-4 pb-24 max-w-4xl mx-auto px-3 sm:px-6 pt-2">
+    <div className="space-y-6 w-full pb-10">
       {/* ───────────────────────────────────────────────────────────────────────── */}
       {/* TOP CONTEXT BAR: Project Selector & Live Muster Status                     */}
       {/* ───────────────────────────────────────────────────────────────────────── */}
-      <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-lg border border-slate-800">
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950 text-white rounded-2xl p-5 sm:p-6 border border-slate-800 shadow-md">
         <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
           <div className="flex items-center gap-2">
             <span className="p-2 bg-amber-500/20 text-amber-400 rounded-xl border border-amber-500/30">

@@ -22,3 +22,4 @@ export function AdaptiveLayoutController({ children }: AdaptiveLayoutControllerP
   // Strict guarantee: zero modifications to the existing desktop Web UI
   return <AppLayout>{children}</AppLayout>;
 }
+

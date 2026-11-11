@@ -213,37 +213,37 @@ export function EngineerFieldHub() {
   const dprStatus = todayDpr?.status || "not_started";
 
   return (
-    <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-4 sm:space-y-6 w-full pb-10">
       {/* ── 1. Top Header & Site Switcher ── */}
-      <div className="bg-card rounded-2xl p-4 sm:p-5 border shadow-sm">
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white rounded-2xl p-5 sm:p-6 border border-slate-800 shadow-md">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="p-1 rounded-md bg-primary/10 text-primary">
+              <span className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                 <HardHat className="w-5 h-5" />
               </span>
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                Site Operations Hub
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+                Site Operations & Field Execution Hub
               </h1>
-              <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300">
-                Live Field PWA
+              <Badge variant="outline" className="text-xs bg-emerald-500/20 text-emerald-300 border-emerald-400/30">
+                Lead Site Engineer
               </Badge>
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Welcome back, <span className="font-semibold text-foreground">{user?.name}</span> • Log daily progress, attendance, and site execution
+            <p className="text-xs sm:text-sm text-slate-300">
+              Welcome back, <span className="font-semibold text-white">{user?.name}</span> • Live site DPR logging, geofenced muster, drawings, and task progress
             </p>
           </div>
 
           {/* Active Site Selector */}
           <div className="flex items-center gap-2 min-w-0 sm:w-72">
-            <MapPin className="w-4 h-4 text-primary shrink-0" />
+            <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
             <select
               value={activeProject?.id || 1}
               onChange={(e) => setSelectedProjectId(Number(e.target.value))}
-              className="w-full h-10 px-3 rounded-xl border border-input bg-muted/40 text-xs sm:text-sm font-semibold truncate focus:ring-2 focus:ring-primary focus:outline-hidden cursor-pointer"
+              className="w-full h-10 px-3 rounded-xl border border-slate-700 bg-slate-800/90 text-white text-xs sm:text-sm font-semibold truncate focus:ring-2 focus:ring-emerald-500 focus:outline-hidden cursor-pointer"
             >
               {(projects || []).map((p) => (
-                <option key={p.id} value={p.id}>
+                <option key={p.id} value={p.id} className="bg-slate-900 text-white">
                   {p.name} ({p.location || "Site"})
                 </option>
               ))}
@@ -253,23 +253,23 @@ export function EngineerFieldHub() {
 
         {/* Project Snapshot Pill Bar */}
         {activeProject && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pt-3 border-t text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 pt-3 border-t border-slate-700/60 text-xs">
             <div>
-              <span className="text-muted-foreground block text-[11px]">Client</span>
-              <span className="font-bold text-foreground truncate block">{activeProject.clientName || "Direct"}</span>
+              <span className="text-slate-400 block text-[11px]">Client</span>
+              <span className="font-bold text-white truncate block">{activeProject.clientName || "Direct"}</span>
             </div>
             <div>
-              <span className="text-muted-foreground block text-[11px]">Location</span>
-              <span className="font-bold text-foreground truncate block">{activeProject.location || "Metropolitan"}</span>
+              <span className="text-slate-400 block text-[11px]">Location</span>
+              <span className="font-bold text-white truncate block">{activeProject.location || "Metropolitan"}</span>
             </div>
             <div>
-              <span className="text-muted-foreground block text-[11px]">Lifecycle Phase</span>
-              <span className="font-bold capitalize text-primary block">{activeProject.status.replace("_", " ")}</span>
+              <span className="text-slate-400 block text-[11px]">Lifecycle Phase</span>
+              <span className="font-bold capitalize text-emerald-400 block">{activeProject.status.replace("_", " ")}</span>
             </div>
             <div>
-              <span className="text-muted-foreground block text-[11px]">Site Weather</span>
-              <span className="font-bold text-foreground flex items-center gap-1">
-                <Sun className="w-3.5 h-3.5 text-amber-500" /> Sunny 29°C
+              <span className="text-slate-400 block text-[11px]">Site Weather</span>
+              <span className="font-bold text-white flex items-center gap-1">
+                <Sun className="w-3.5 h-3.5 text-amber-400" /> Sunny 29°C
               </span>
             </div>
           </div>
