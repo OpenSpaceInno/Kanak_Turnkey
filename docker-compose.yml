@@ -1,39 +1,36 @@
 services:
   # =========================================================================
-  # Frontend: React + Vite SPA served via Nginx with API Reverse Proxy
+  # Frontend: React + Vite SPA served via Nginx with /api Reverse Proxy
   # =========================================================================
   frontend:
     build:
       context: .
       dockerfile: artifacts/kanak-turnkey/Dockerfile
-    container_name: kanak_turnkey_frontend
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
+    expose:
+      - "80"
     depends_on:
       - backend
     networks:
       - kanak_network
 
   # =========================================================================
-  # Backend: Express 5 API Server (Drizzle ORM + REST Endpoints)
+  # Backend: Express 5 API Server (Drizzle ORM + REST Endpoints + CORS + HTTPS)
   # =========================================================================
   backend:
     build:
       context: .
       dockerfile: artifacts/api-server/Dockerfile
-    container_name: kanak_turnkey_backend
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     environment:
       PORT: 3000
       NODE_ENV: production
-      CORS_ORIGIN: "*"
-      # Database Connection Strings (password: root)
-      MYSQL_URL: mysql://root:root@db:3306/kanak_turnkey
-      DATABASE_URL: postgresql://postgres:root@postgres:5432/kanak_turnkey
+      CORS_ORIGIN: "${CORS_ORIGIN:-*}"
+      # Database Connection Strings (default password: root)
+      MYSQL_URL: "${MYSQL_URL:-mysql://root:root@db:3306/kanak_turnkey}"
+      DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:root@postgres:5432/kanak_turnkey}"
     depends_on:
       db:
         condition: service_healthy
@@ -47,15 +44,14 @@ services:
   # =========================================================================
   db:
     image: mysql:8.0
-    container_name: kanak_turnkey_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: kanak_turnkey
-      MYSQL_USER: kanak
-      MYSQL_PASSWORD: root
-    ports:
-      - "3306:3306"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-root}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE:-kanak_turnkey}"
+      MYSQL_USER: "${MYSQL_USER:-kanak}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD:-root}"
+    expose:
+      - "3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./lib/db/mysql-schema.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -70,20 +66,18 @@ services:
 
   # =========================================================================
   # phpMyAdmin (Web UI for MySQL Management & Database Inspection)
-  # Accessible at: http://localhost:8080
   # =========================================================================
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
-    container_name: kanak_turnkey_phpmyadmin
     restart: unless-stopped
     environment:
       PMA_HOST: db
       PMA_PORT: 3306
       PMA_USER: root
-      PMA_PASSWORD: root
+      PMA_PASSWORD: "${MYSQL_ROOT_PASSWORD:-root}"
       UPLOAD_LIMIT: 64M
-    ports:
-      - "8080:80"
+    expose:
+      - "80"
     depends_on:
       db:
         condition: service_healthy
@@ -95,14 +89,13 @@ services:
   # =========================================================================
   postgres:
     image: postgres:16-alpine
-    container_name: kanak_turnkey_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: root
-      POSTGRES_DB: kanak_turnkey
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-root}"
+      POSTGRES_DB: "${POSTGRES_DB:-kanak_turnkey}"
+    expose:
+      - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./lib/db/src/schema.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -124,4 +117,3 @@ volumes:
 networks:
   kanak_network:
     driver: bridge
-

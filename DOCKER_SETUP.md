@@ -1,4 +1,4 @@
-# 🐳 Kanak Turnkey — Docker & Database Deployment Guide
+# 🐳 Kanak Turnkey — Docker & Coolify Deployment Guide
 
 This project includes a complete Docker configuration with **Frontend**, **Backend**, **MySQL Database**, **phpMyAdmin**, and **PostgreSQL**.
 
@@ -6,53 +6,60 @@ This project includes a complete Docker configuration with **Frontend**, **Backe
 
 ## 📦 Services in Docker Compose
 
-| Service | Port | Description |
+| Service | Internal Port | Description |
 |---|---|---|
-| **Frontend** | `80`, `443` | React SPA served via high-performance Nginx with reverse proxy to API |
-| **Backend** | `3000` | Express 5 API Server (Drizzle ORM + REST API + CORS + HTTPS proxy trust) |
-| **MySQL (db)** | `3306` | MySQL 8.0 pre-seeded with all 32 tables and initial data |
-| **phpMyAdmin** | `8080` | Visual MySQL database admin UI (URL: `http://localhost:8080`) |
-| **PostgreSQL** | `5432` | PostgreSQL 16 container for native Drizzle ORM operations |
+| **frontend** | `80` | React SPA served via high-performance Nginx with `/api/` reverse proxy to backend |
+| **backend** | `3000` | Express 5 API Server (Drizzle ORM + REST API + CORS + HTTPS proxy trust) |
+| **db** | `3306` | MySQL 8.0 pre-seeded with all 32 tables and initial data (root password: `root`) |
+| **phpmyadmin** | `80` | Visual MySQL database admin UI (User: `root`, Password: `root`) |
+| **postgres** | `5432` | PostgreSQL 16 container for native Drizzle ORM operations |
 
 ---
 
-## 🚀 Quick Start with Docker
+## ☁️ Deploying on Coolify (HTTPS via Traefik)
 
-### 1. Start All Services
+[`docker-compose.yml`](./docker-compose.yml) uses internal `expose:` ports (no hardcoded host `ports:` or `container_name:`) so it integrates directly with Coolify's Traefik reverse proxy without port `80`/`443` conflicts:
+
+1. In Coolify, create a **Docker Compose** resource pointing to this repository.
+2. Assign your HTTPS domain (e.g. `https://kanak.yourdomain.com`) to the **`frontend`** service (port `80`).
+3. *(Optional)* Assign a subdomain (e.g. `https://pma.yourdomain.com`) to the **`phpmyadmin`** service (port `80`).
+4. Set `CORS_ORIGIN` in Coolify Environment Variables if calling the API directly from an external origin (or leave `*`).
+5. Click **Deploy**.
+
+---
+
+## 💻 Running Locally with Docker Compose
+
+When running Docker locally on your machine (without Coolify/Traefik), include [`docker-compose.local.yml`](./docker-compose.local.yml) to map host ports:
+
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 ```
 
-### 2. Verify Container Status
-```bash
-docker compose ps
-```
-
-### 3. Access the Applications
-- **Web App (Frontend)**: [http://localhost](http://localhost)
-- **API Server (Backend)**: [http://localhost:3000/api](http://localhost:3000/api)
+### Local Access URLs:
+- **Web App (Frontend)**: [http://localhost](http://localhost) (port `80`)
+- **API Server (Backend)**: [http://localhost:3000/api/health](http://localhost:3000/api/health)
 - **phpMyAdmin**: [http://localhost:8080](http://localhost:8080)
   - **Server**: `db`
   - **Username**: `root`
   - **Password**: `root`
   - **Database**: `kanak_turnkey`
 
-### 4. Stop All Services
+### Stop Local Containers:
 ```bash
-docker compose down
+docker compose -f docker-compose.yml -f docker-compose.local.yml down
 ```
 
 ---
 
 ## 🔒 CORS & HTTPS Deployment
 
-### Running with HTTPS
-1. In `artifacts/api-server/src/app.ts`, Express is configured with `app.set("trust proxy", 1);` to automatically trust SSL reverse proxies (Nginx, Traefik, AWS ALB, Cloudflare).
+1. In `artifacts/api-server/src/app.ts`, Express is configured with `app.set("trust proxy", 1);` to automatically trust SSL reverse proxies (Traefik, Nginx, AWS ALB, Cloudflare).
 2. Set your domain in `.env`:
    ```env
    CORS_ORIGIN=https://yourdomain.com,https://api.yourdomain.com
    ```
-3. Nginx (`artifacts/kanak-turnkey/nginx.conf`) handles reverse proxying `/api/` to `http://backend:3000/api/` with SSL headers (`X-Forwarded-Proto`, `Host`, `X-Real-IP`).
+3. Nginx (`artifacts/kanak-turnkey/nginx.conf`) reverse-proxies `/api/` to `http://backend:3000/api/` with SSL headers (`X-Forwarded-Proto`, `Host`, `X-Real-IP`).
 
 ---
 
@@ -74,4 +81,3 @@ npm run dev
 ```
 - API Server runs on [http://localhost:3000](http://localhost:3000)
 - Web UI runs on [http://localhost:5173](http://localhost:5173)
-

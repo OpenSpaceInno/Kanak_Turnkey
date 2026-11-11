@@ -52,16 +52,23 @@ npm run dev
 
 ---
 
-## 🐳 Docker Deployment
+## 🐳 Docker & Coolify Deployment
 
 The project includes a ready-to-use Docker configuration with **Frontend (Nginx)**, **Backend (Express)**, **MySQL Database**, **phpMyAdmin**, and **PostgreSQL**.
 
-### Start All Containers
+### Deploy on Coolify (HTTPS via Traefik)
+`docker-compose.yml` uses internal `expose:` ports to avoid host port `80`/`443` conflicts with Coolify's Traefik proxy:
+1. Create a **Docker Compose** resource in Coolify pointing to this repository.
+2. Assign your HTTPS domain to the **`frontend`** service (port `80`).
+3. *(Optional)* Assign a subdomain to **`phpmyadmin`** (port `80`).
+4. Deploy!
+
+### Run Locally with Docker
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 ```
 
-### Services & Port Mapping
+### Services & Port Mapping (Local Override)
 | Service | URL / Port | Credentials / Notes |
 |---|---|---|
 | **Web UI** | [http://localhost](http://localhost) (port 80) | Served via Nginx with API proxy |
