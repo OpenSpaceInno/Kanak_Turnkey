@@ -1,0 +1,5 @@
+FROM mysql:8.0
+
+# Pre-load Kanak Turnkey 32-table MySQL schema & seed data into image
+# Avoids host bind-mount path issues on Coolify and cloud orchestrators
+COPY lib/db/mysql-schema.sql /docker-entrypoint-initdb.d/01-init.sql

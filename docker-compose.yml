@@ -10,7 +10,8 @@ services:
     expose:
       - "80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - kanak_network
 
@@ -31,6 +32,12 @@ services:
       # Database Connection Strings (default password: root)
       MYSQL_URL: "${MYSQL_URL:-mysql://root:root@db:3306/kanak_turnkey}"
       DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:root@postgres:5432/kanak_turnkey}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3000/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     depends_on:
       db:
         condition: service_healthy
@@ -43,7 +50,9 @@ services:
   # MySQL Database (Pre-seeded with 32 Turnkey Tables & Operations Data)
   # =========================================================================
   db:
-    image: mysql:8.0
+    build:
+      context: .
+      dockerfile: lib/db/Dockerfile.mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-root}"
@@ -54,7 +63,6 @@ services:
       - "3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./lib/db/mysql-schema.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
       interval: 10s
@@ -75,6 +83,7 @@ services:
       PMA_PORT: 3306
       PMA_USER: root
       PMA_PASSWORD: "${MYSQL_ROOT_PASSWORD:-root}"
+      PMA_ABSOLUTE_URI: "${PMA_ABSOLUTE_URI:-}"
       UPLOAD_LIMIT: 64M
     expose:
       - "80"
@@ -98,7 +107,6 @@ services:
       - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./lib/db/src/schema.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
