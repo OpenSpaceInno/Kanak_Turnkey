@@ -2,13 +2,15 @@
   "name": "workspace",
   "version": "0.0.0",
   "license": "MIT",
+  "type": "module",
   "scripts": {
     "dev": "node scripts/run-all.mjs",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "db:mysql:setup": "node scripts/setup-mysql.mjs",
-    "db:mysql:push": "pnpm --filter @workspace/db run push:mysql"
+    "db:mysql:push": "pnpm --filter @workspace/db run push:mysql",
+    "db:test": "node test-db-connection.js"
   },
   "private": true,
   "devDependencies": {
@@ -16,9 +18,9 @@
     "typescript": "~5.9.2"
   },
   "dependencies": {
-    "better-sqlite3": "^11.10.0",
     "dotenv": "^17.4.2",
-    "rollup": "4.59.0",
-    "sql.js": "^1.14.2"
+    "mysql2": "^3.24.6",
+    "pg": "^8.20.0",
+    "rollup": "4.59.0"
   }
 }

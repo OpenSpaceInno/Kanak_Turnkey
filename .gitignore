@@ -40,11 +40,14 @@ testem.log
 # System Files
 .DS_Store
 Thumbs.db
+*.zip
+zipFile.zip
 
 # Database & Environment
 .env
 .env.*
 !.env.example
+!.env.docker
 .pgdata/
 **/.pgdata/
 *.db

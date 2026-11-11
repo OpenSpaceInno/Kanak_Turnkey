@@ -835,7 +835,7 @@ router.get("/approvals/summary", async (_req, res): Promise<void> => {
       })
       .from(materialRequestsTable)
       .leftJoin(projectsTable, eq(projectsTable.id, materialRequestsTable.projectId))
-      .leftJoin(usersTable, eq(usersTable.id, materialRequestsTable.requestedById))
+      .leftJoin(usersTable, eq(usersTable.id, materialRequestsTable.createdById))
       .orderBy(desc(materialRequestsTable.createdAt));
 
     const pendingMrs = mrRows

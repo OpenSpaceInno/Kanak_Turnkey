@@ -102,7 +102,7 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
     })
     .from(leadsTable)
     .groupBy(leadsTable.stage);
-  const stageMap = new Map(
+  const stageMap = new Map<string, { count: number; value: number }>(
     leadFunnelRaw.map((r) => [
       r.stage,
       { count: r.count, value: num(r.value) ?? 0 },

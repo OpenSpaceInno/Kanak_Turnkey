@@ -1,4 +1,3 @@
-﻿◇ injected env (3) from ..\..\.env // tip: ⌘ override existing { override: true }
 CREATE TABLE "audit_logs" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" integer,

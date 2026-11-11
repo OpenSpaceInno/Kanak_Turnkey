@@ -1,0 +1,46 @@
+# Dependency directories
+node_modules
+*/node_modules
+*/*/node_modules
+
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Build outputs
+dist
+dist/
+build
+out-tsc
+*.tsbuildinfo
+
+# Local environment & databases
+.env
+.env.local
+.env.*.local
+.pgdata
+*.db
+*.sqlite
+
+# Archives and large binaries
+zipFile.zip
+*.zip
+*.tar.gz
+
+# IDE and OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Replit
+.replit
+.replitignore
+.cache
+.local

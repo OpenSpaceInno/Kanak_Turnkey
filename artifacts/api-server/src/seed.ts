@@ -1870,7 +1870,7 @@ export async function seedIfEmpty(): Promise<void> {
       return;
     }
   } catch (error: any) {
-    logger.warn("Database not available, skipping seed");
+    logger.warn({ err: error?.message || error }, "Database not available, skipping seed");
     return;
   }
   

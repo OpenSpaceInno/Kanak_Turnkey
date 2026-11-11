@@ -12,7 +12,7 @@ console.log("   - Web UI on http://localhost:5173");
 const isWin = process.platform === "win32";
 const pnpmCmd = isWin ? "pnpm.cmd" : "pnpm";
 
-const apiServer = spawn("node", ["dist/index.mjs"], {
+const apiServer = spawn(pnpmCmd, ["run", "dev"], {
   cwd: path.resolve(rootDir, "artifacts/api-server"),
   stdio: "inherit",
   shell: isWin,
