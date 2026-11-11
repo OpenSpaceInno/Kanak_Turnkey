@@ -32,15 +32,20 @@ router.get("/communications", async (req, res): Promise<void> => {
 router.post("/communications", async (req, res): Promise<void> => {
   const b = req.body ?? {};
   const me = await getCurrentUser();
+  const commDate = b.communicationDate && !isNaN(new Date(b.communicationDate).getTime())
+    ? new Date(b.communicationDate)
+    : new Date();
+  const commType = (b.communicationType || b.type || "email").toString();
+  const subject = (b.subject || b.title || "General Communication").toString().trim();
   const [c] = await db
     .insert(communicationsTable)
     .values({
-      projectId: b.projectId ?? null,
-      stakeholderId: b.stakeholderId ?? null,
-      communicationType: b.communicationType,
-      subject: b.subject,
+      projectId: b.projectId ? parseInt(String(b.projectId), 10) : null,
+      stakeholderId: b.stakeholderId ? parseInt(String(b.stakeholderId), 10) : null,
+      communicationType: commType,
+      subject,
       content: b.content ?? null,
-      communicationDate: new Date(b.communicationDate),
+      communicationDate: commDate,
       participants: b.participants ?? null,
       createdById: me.id,
     })
@@ -152,16 +157,18 @@ router.get("/documents", async (req, res): Promise<void> => {
 router.post("/documents", async (req, res): Promise<void> => {
   const b = req.body ?? {};
   const me = await getCurrentUser();
+  const fileName = (b.fileName || b.name || b.title || `Document-${Date.now()}`).toString().trim();
+  const version = parseInt(String(b.version ?? 1), 10) || 1;
   const [d] = await db
     .insert(documentsTable)
     .values({
-      projectId: b.projectId,
-      fileName: b.fileName,
+      projectId: parseInt(String(b.projectId), 10),
+      fileName,
       fileType: b.fileType ?? null,
-      fileSize: b.fileSize ?? null,
+      fileSize: b.fileSize ? parseInt(String(b.fileSize), 10) : null,
       fileUrl: b.fileUrl ?? null,
       category: b.category ?? "general",
-      version: b.version ?? 1,
+      version,
       status: b.status ?? "active",
       uploadedById: me.id,
     })

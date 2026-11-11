@@ -84,6 +84,38 @@ router.get("/projects/:id", async (req, res): Promise<void> => {
   });
 });
 
+router.get("/projects/:id/stats", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id as string, 10);
+  const [p] = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
+  if (!p) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  const tasks = await db.select().from(tasksTable).where(eq(tasksTable.projectId, id));
+  const budgetItems = await db.select().from(budgetItemsTable).where(eq(budgetItemsTable.projectId, id));
+  const punchItems = await db.select().from(punchListItemsTable).where(eq(punchListItemsTable.projectId, id));
+
+  const totalBudgeted = budgetItems.reduce((sum, b) => sum + Number(b.budgeted || 0), 0);
+  const totalActual = budgetItems.reduce((sum, b) => sum + Number(b.actual || 0), 0);
+  const totalCommitted = budgetItems.reduce((sum, b) => sum + Number(b.committed || 0), 0);
+  const completedTasks = tasks.filter((t) => t.status === "completed").length;
+  const openIssues = punchItems.filter((i) => i.status !== "closed" && i.status !== "resolved").length;
+
+  res.json({
+    projectId: id,
+    projectName: p.name,
+    projectBudget: Number(p.budget || 0),
+    totalBudgeted,
+    totalActual,
+    totalCommitted,
+    taskCount: tasks.length,
+    completedTasks,
+    progress: p.progress || 0,
+    openIssues,
+    health: openIssues > 5 ? "at_risk" : totalActual > (totalBudgeted || Number(p.budget || 0)) ? "warning" : "good",
+  });
+});
+
 router.patch("/projects/:id", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string, 10);
   const b = req.body ?? {};
@@ -292,13 +324,15 @@ router.get("/projects/:projectId/budget", async (req, res): Promise<void> => {
 router.post("/projects/:projectId/budget", async (req, res): Promise<void> => {
   const pid = parseInt(req.params.projectId as string, 10);
   const b = req.body ?? {};
+  const costCode = (b.costCode || b.code || b.category || `CST-${Date.now().toString().slice(-4)}`).trim();
+  const description = (b.description || b.name || b.category || "Project Budget Item").trim();
   const [item] = await db
     .insert(budgetItemsTable)
     .values({
       projectId: pid,
-      costCode: b.costCode,
-      description: b.description,
-      budgeted: String(b.budgeted ?? 0),
+      costCode,
+      description,
+      budgeted: String(b.budgeted ?? b.allocatedAmount ?? b.amount ?? 0),
       actual: String(b.actual ?? 0),
       committed: String(b.committed ?? 0),
     })

@@ -3,16 +3,37 @@ import { db, usersTable, auditLogsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { getCurrentUser, setActiveRole, clearUserCache, setSessionUser } from "../lib/session";
 import { hashPassword, verifyPassword } from "../lib/password";
+import { signToken, verifyToken } from "../lib/jwt";
+import { loginRateLimiter, requireRole } from "../lib/auth-middleware";
 
 const router: IRouter = Router();
 
 router.get("/auth/me", async (req, res): Promise<void> => {
-  const userIdHeader = (req.headers["x-user-id"] as string) || (req.query?.userId as string);
-  const user = await getCurrentUser(userIdHeader);
+  let userId: string | number | null = null;
+
+  // 1. Check Bearer token
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const payload = verifyToken(authHeader.slice(7).trim());
+    if (payload) userId = payload.sub;
+  }
+
+  // 2. Check Cookie
+  if (!userId && req.cookies?.kanak_token) {
+    const payload = verifyToken(req.cookies.kanak_token);
+    if (payload) userId = payload.sub;
+  }
+
+  // 3. Fallback to header or query param
+  if (!userId) {
+    userId = (req.headers["x-user-id"] as string) || (req.query?.userId as string);
+  }
+
+  const user = await getCurrentUser(userId);
   res.json(user);
 });
 
-router.post("/auth/login", async (req, res): Promise<void> => {
+router.post("/auth/login", loginRateLimiter, async (req, res): Promise<void> => {
   const { email, password, userId } = req.body || {};
 
   let user;
@@ -41,11 +62,30 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
 
   const sessionUser = setSessionUser(user);
-  res.json(sessionUser);
+  const token = signToken({
+    sub: sessionUser.id,
+    email: sessionUser.email,
+    name: sessionUser.name,
+    roles: sessionUser.roles,
+    activeRole: sessionUser.activeRole,
+  });
+
+  res.cookie("kanak_token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  res.json({
+    ...sessionUser,
+    token,
+  });
 });
 
 router.post("/auth/logout", async (_req, res): Promise<void> => {
   clearUserCache();
+  res.clearCookie("kanak_token");
   res.json({ success: true, message: "Logged out successfully" });
 });
 
@@ -57,7 +97,25 @@ router.post("/auth/switch-role", async (req, res): Promise<void> => {
   }
   const userIdHeader = (req.headers["x-user-id"] as string) || (req.query?.userId as string);
   const user = await setActiveRole(role, userIdHeader);
-  res.json(user);
+  const token = signToken({
+    sub: user.id,
+    email: user.email,
+    name: user.name,
+    roles: user.roles,
+    activeRole: user.activeRole,
+  });
+
+  res.cookie("kanak_token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+
+  res.json({
+    ...user,
+    token,
+  });
 });
 
 router.post("/auth/change-password", async (req, res): Promise<void> => {
@@ -127,7 +185,7 @@ router.get("/users", async (_req, res): Promise<void> => {
   );
 });
 
-router.post("/users", async (req, res): Promise<void> => {
+router.post("/users", requireRole(["admin"]), async (req, res): Promise<void> => {
   const {
     name,
     email,
@@ -263,7 +321,7 @@ router.patch("/users/:id", async (req, res): Promise<void> => {
   });
 });
 
-router.patch("/users/:id/roles", async (req, res): Promise<void> => {
+router.patch("/users/:id/roles", requireRole(["admin"]), async (req, res): Promise<void> => {
   const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0]! : req.params.id!, 10);
   const roles: string[] = Array.isArray(req.body?.roles) ? req.body.roles : [];
   const [user] = await db
@@ -291,7 +349,7 @@ router.patch("/users/:id/roles", async (req, res): Promise<void> => {
   });
 });
 
-router.delete("/users/:id", async (req, res): Promise<void> => {
+router.delete("/users/:id", requireRole(["admin"]), async (req, res): Promise<void> => {
   const id = parseInt(Array.isArray(req.params.id) ? req.params.id[0]! : req.params.id!, 10);
   const me = await getCurrentUser();
   if (me.id === id) {

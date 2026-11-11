@@ -19,10 +19,11 @@ import { numKeys } from "../lib/transforms";
 import { getCurrentUser } from "../lib/session";
 import { generateNumber } from "../lib/numbers";
 import { ensureProcurementFlowSeed } from "../seed";
+import { gateInProduction } from "../lib/auth-middleware";
 
 const router: IRouter = Router();
 
-router.post("/procurement/seed-demo-flow", async (_req, res): Promise<void> => {
+router.post("/procurement/seed-demo-flow", gateInProduction, async (_req, res): Promise<void> => {
   await ensureProcurementFlowSeed();
   res.json({ success: true, message: "Procurement demo flow seeded" });
 });
@@ -177,12 +178,12 @@ router.get("/procurement/stock-matrix", async (_req, res): Promise<void> => {
 // ============================================================================
 // 2. Vendors
 // ============================================================================
-router.get("/vendors", async (_req, res): Promise<void> => {
+router.get(["/vendors", "/procurement/vendors"], async (_req, res): Promise<void> => {
   const rows = await db.select().from(vendorsTable).orderBy(vendorsTable.name);
   res.json(rows.map(fVendor));
 });
 
-router.post("/vendors", async (req, res): Promise<void> => {
+router.post(["/vendors", "/procurement/vendors"], async (req, res): Promise<void> => {
   const b = req.body ?? {};
   const [v] = await db
     .insert(vendorsTable)
@@ -231,7 +232,7 @@ router.patch("/vendors/:id", async (req, res): Promise<void> => {
 // ============================================================================
 // 3. Material Requests (Requisition & Approval Flow)
 // ============================================================================
-router.get("/material-requests", async (_req, res): Promise<void> => {
+router.get(["/material-requests", "/procurement/requests"], async (_req, res): Promise<void> => {
   const rows = await db
     .select({
       m: materialRequestsTable,
@@ -253,7 +254,7 @@ router.get("/material-requests", async (_req, res): Promise<void> => {
   );
 });
 
-router.post("/material-requests", async (req, res): Promise<void> => {
+router.post(["/material-requests", "/procurement/requests"], async (req, res): Promise<void> => {
   const b = req.body ?? {};
   const me = await getCurrentUser();
 
@@ -436,7 +437,7 @@ router.patch("/material-requests/:id", async (req, res): Promise<void> => {
 // ============================================================================
 // 4. Stock Transfers (In-House Warehouse <-> Project Sites)
 // ============================================================================
-router.get("/stock-transfers", async (_req, res): Promise<void> => {
+router.get(["/stock-transfers", "/procurement/transfers"], async (_req, res): Promise<void> => {
   const rows = await db
     .select({
       t: stockTransfersTable,
@@ -458,7 +459,7 @@ router.get("/stock-transfers", async (_req, res): Promise<void> => {
   );
 });
 
-router.post("/stock-transfers", async (req, res): Promise<void> => {
+router.post(["/stock-transfers", "/procurement/transfers"], async (req, res): Promise<void> => {
   const b = req.body ?? {};
   const me = await getCurrentUser();
   const transferNum = await generateNumber("TR", stockTransfersTable);
@@ -483,87 +484,97 @@ router.post("/stock-transfers", async (req, res): Promise<void> => {
 
 router.post("/stock-transfers/:id/dispatch", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string, 10);
-  const [t] = await db.select().from(stockTransfersTable).where(eq(stockTransfersTable.id, id));
+  const updated = await db.transaction(async (tx) => {
+    const [t] = await tx.select().from(stockTransfersTable).where(eq(stockTransfersTable.id, id));
+    if (!t) return null;
 
-  if (!t) {
+    // Deduct from source warehouse or site
+    const sourceCondition = t.fromProjectId
+      ? and(eq(materialsTable.projectId, t.fromProjectId), eq(materialsTable.name, t.materialName))
+      : and(isNull(materialsTable.projectId), eq(materialsTable.name, t.materialName));
+
+    const [sourceMat] = await tx.select().from(materialsTable).where(sourceCondition).limit(1);
+
+    if (sourceMat) {
+      const cur = Number(sourceMat.quantityOnHand || 0);
+      const toDeduct = Number(t.quantity);
+      await tx
+        .update(materialsTable)
+        .set({ quantityOnHand: String(Math.max(0, cur - toDeduct)) })
+        .where(eq(materialsTable.id, sourceMat.id));
+    }
+
+    const [upd] = await tx
+      .update(stockTransfersTable)
+      .set({
+        status: "dispatched",
+        dispatchDate: new Date(),
+      })
+      .where(eq(stockTransfersTable.id, id))
+      .returning();
+
+    return upd;
+  });
+
+  if (!updated) {
     res.status(404).json({ error: "Transfer not found" });
     return;
   }
 
-  // Deduct from source warehouse or site
-  const sourceCondition = t.fromProjectId
-    ? and(eq(materialsTable.projectId, t.fromProjectId), eq(materialsTable.name, t.materialName))
-    : and(isNull(materialsTable.projectId), eq(materialsTable.name, t.materialName));
-
-  const [sourceMat] = await db.select().from(materialsTable).where(sourceCondition).limit(1);
-
-  if (sourceMat) {
-    const cur = Number(sourceMat.quantityOnHand || 0);
-    const toDeduct = Number(t.quantity);
-    await db
-      .update(materialsTable)
-      .set({ quantityOnHand: String(Math.max(0, cur - toDeduct)) })
-      .where(eq(materialsTable.id, sourceMat.id));
-  }
-
-  const [updated] = await db
-    .update(stockTransfersTable)
-    .set({
-      status: "dispatched",
-      dispatchDate: new Date(),
-    })
-    .where(eq(stockTransfersTable.id, id))
-    .returning();
-
-  res.json(fTransfer(updated!));
+  res.json(fTransfer(updated));
 });
 
 router.post("/stock-transfers/:id/receive", async (req, res): Promise<void> => {
   const id = parseInt(req.params.id as string, 10);
-  const [t] = await db.select().from(stockTransfersTable).where(eq(stockTransfersTable.id, id));
+  const updated = await db.transaction(async (tx) => {
+    const [t] = await tx.select().from(stockTransfersTable).where(eq(stockTransfersTable.id, id));
+    if (!t) return null;
 
-  if (!t) {
+    // Credit to destination project site
+    const destCondition = and(
+      eq(materialsTable.projectId, t.toProjectId),
+      eq(materialsTable.name, t.materialName)
+    );
+    const [destMat] = await tx.select().from(materialsTable).where(destCondition).limit(1);
+
+    if (destMat) {
+      const cur = Number(destMat.quantityOnHand || 0);
+      await tx
+        .update(materialsTable)
+        .set({ quantityOnHand: String(cur + Number(t.quantity)) })
+        .where(eq(materialsTable.id, destMat.id));
+    } else {
+      await tx.insert(materialsTable).values({
+        projectId: t.toProjectId,
+        name: t.materialName,
+        unit: t.unit,
+        locationType: "site",
+        quantityOnHand: String(t.quantity),
+        quantityCommitted: "0",
+        quantityConsumed: "0",
+        minimumStock: "0",
+        reorderLevel: "0",
+      });
+    }
+
+    const [upd] = await tx
+      .update(stockTransfersTable)
+      .set({
+        status: "received",
+        receivedDate: new Date(),
+      })
+      .where(eq(stockTransfersTable.id, id))
+      .returning();
+
+    return upd;
+  });
+
+  if (!updated) {
     res.status(404).json({ error: "Transfer not found" });
     return;
   }
 
-  // Credit to destination project site
-  const destCondition = and(
-    eq(materialsTable.projectId, t.toProjectId),
-    eq(materialsTable.name, t.materialName)
-  );
-  const [destMat] = await db.select().from(materialsTable).where(destCondition).limit(1);
-
-  if (destMat) {
-    const cur = Number(destMat.quantityOnHand || 0);
-    await db
-      .update(materialsTable)
-      .set({ quantityOnHand: String(cur + Number(t.quantity)) })
-      .where(eq(materialsTable.id, destMat.id));
-  } else {
-    await db.insert(materialsTable).values({
-      projectId: t.toProjectId,
-      name: t.materialName,
-      unit: t.unit,
-      locationType: "site",
-      quantityOnHand: String(t.quantity),
-      quantityCommitted: "0",
-      quantityConsumed: "0",
-      minimumStock: "0",
-      reorderLevel: "0",
-    });
-  }
-
-  const [updated] = await db
-    .update(stockTransfersTable)
-    .set({
-      status: "received",
-      receivedDate: new Date(),
-    })
-    .where(eq(stockTransfersTable.id, id))
-    .returning();
-
-  res.json(fTransfer(updated!));
+  res.json(fTransfer(updated));
 });
 
 // ============================================================================
@@ -800,7 +811,7 @@ router.post("/quotations/:id/select", async (req, res): Promise<void> => {
 // ============================================================================
 // 6. Purchase Orders (PO Tracking, Inspection, & Auto-Fulfillment)
 // ============================================================================
-router.get("/purchase-orders", async (_req, res): Promise<void> => {
+router.get(["/purchase-orders", "/procurement/orders"], async (_req, res): Promise<void> => {
   const rows = await db
     .select({
       po: purchaseOrdersTable,
@@ -816,7 +827,7 @@ router.get("/purchase-orders", async (_req, res): Promise<void> => {
   );
 });
 
-router.post("/purchase-orders", async (req, res): Promise<void> => {
+router.post(["/purchase-orders", "/procurement/orders"], async (req, res): Promise<void> => {
   const b = req.body ?? {};
   const me = await getCurrentUser();
   const poNumber =
@@ -935,107 +946,115 @@ router.post("/purchase-orders/:id/inspect", async (req, res): Promise<void> => {
 
   if (passed) {
     const grnNumber = await generateNumber("GRN", purchaseOrdersTable);
-    const [updatedPo] = await db
-      .update(purchaseOrdersTable)
-      .set({
-        inspectionStatus: "passed",
-        status: "delivered",
-        inspectedById: me.id,
-        inspectedAt: new Date(),
-        inspectionNotes: notes || "Quality check approved. All materials conforming to specification.",
-        grnNumber,
-      })
-      .where(eq(purchaseOrdersTable.id, id))
-      .returning();
-
-    // 1. Credit Stock (Site or Central Warehouse)
-    const targetProjectId = po.deliveryDestination === "warehouse" ? null : po.projectId;
-    const materialName = po.description?.replace("Purchase for ", "").replace("PO for ", "") || "Procured Material";
-    const qtyToAdd = Number(quantityReceived || 1);
-
-    const condition = targetProjectId
-      ? and(eq(materialsTable.projectId, targetProjectId), eq(materialsTable.name, materialName))
-      : and(isNull(materialsTable.projectId), eq(materialsTable.name, materialName));
-
-    const [existingMat] = await db.select().from(materialsTable).where(condition).limit(1);
-
-    if (existingMat) {
-      await db
-        .update(materialsTable)
+    const updatedPo = await db.transaction(async (tx) => {
+      const [upd] = await tx
+        .update(purchaseOrdersTable)
         .set({
-          quantityOnHand: String(Number(existingMat.quantityOnHand || 0) + qtyToAdd),
+          inspectionStatus: "passed",
+          status: "delivered",
+          inspectedById: me.id,
+          inspectedAt: new Date(),
+          inspectionNotes: notes || "Quality check approved. All materials conforming to specification.",
+          grnNumber,
         })
-        .where(eq(materialsTable.id, existingMat.id));
-    } else {
-      await db.insert(materialsTable).values({
-        projectId: targetProjectId,
-        name: materialName,
-        unit: "Nos",
-        locationType: targetProjectId ? "site" : "warehouse",
-        quantityOnHand: String(qtyToAdd),
-        quantityCommitted: "0",
-        quantityConsumed: "0",
-        minimumStock: "10",
-        reorderLevel: "5",
-        unitCost: String(Math.round(Number(po.totalAmount) / qtyToAdd)),
+        .where(eq(purchaseOrdersTable.id, id))
+        .returning();
+
+      // 1. Credit Stock (Site or Central Warehouse)
+      const targetProjectId = po.deliveryDestination === "warehouse" ? null : po.projectId;
+      const materialName = po.description?.replace("Purchase for ", "").replace("PO for ", "") || "Procured Material";
+      const qtyToAdd = Number(quantityReceived || 1);
+
+      const condition = targetProjectId
+        ? and(eq(materialsTable.projectId, targetProjectId), eq(materialsTable.name, materialName))
+        : and(isNull(materialsTable.projectId), eq(materialsTable.name, materialName));
+
+      const [existingMat] = await tx.select().from(materialsTable).where(condition).limit(1);
+
+      if (existingMat) {
+        await tx
+          .update(materialsTable)
+          .set({
+            quantityOnHand: String(Number(existingMat.quantityOnHand || 0) + qtyToAdd),
+          })
+          .where(eq(materialsTable.id, existingMat.id));
+      } else {
+        await tx.insert(materialsTable).values({
+          projectId: targetProjectId,
+          name: materialName,
+          unit: "Nos",
+          locationType: targetProjectId ? "site" : "warehouse",
+          quantityOnHand: String(qtyToAdd),
+          quantityCommitted: "0",
+          quantityConsumed: "0",
+          minimumStock: "10",
+          reorderLevel: "5",
+          unitCost: String(Math.round(Number(po.totalAmount) / qtyToAdd)),
+        });
+      }
+
+      // 2. Mark linked MR fulfilled if exists
+      if (po.materialRequestId) {
+        await tx
+          .update(materialRequestsTable)
+          .set({ status: "fulfilled" })
+          .where(eq(materialRequestsTable.id, po.materialRequestId));
+      }
+
+      // 3. Update Project Cost / Budget Actuals
+      const [budgetItem] = await tx
+        .select()
+        .from(budgetItemsTable)
+        .where(eq(budgetItemsTable.projectId, po.projectId))
+        .limit(1);
+
+      if (budgetItem) {
+        const curActual = Number(budgetItem.actual || 0);
+        await tx
+          .update(budgetItemsTable)
+          .set({
+            actual: String(curActual + Number(po.totalAmount)),
+          })
+          .where(eq(budgetItemsTable.id, budgetItem.id));
+      }
+
+      // 4. Log Audit
+      await tx.insert(auditLogsTable).values({
+        userId: me.id,
+        activity: `Quality Inspection Passed for ${po.poNumber} (GRN: ${grnNumber}). Stock credited & Project Cost updated.`,
+        resourceType: "purchase_order",
+        resourceId: po.id,
+        status: "success",
       });
-    }
 
-    // 2. Mark linked MR fulfilled if exists
-    if (po.materialRequestId) {
-      await db
-        .update(materialRequestsTable)
-        .set({ status: "fulfilled" })
-        .where(eq(materialRequestsTable.id, po.materialRequestId));
-    }
-
-    // 3. Update Project Cost / Budget Actuals
-    const [budgetItem] = await db
-      .select()
-      .from(budgetItemsTable)
-      .where(eq(budgetItemsTable.projectId, po.projectId))
-      .limit(1);
-
-    if (budgetItem) {
-      const curActual = Number(budgetItem.actual || 0);
-      await db
-        .update(budgetItemsTable)
-        .set({
-          actual: String(curActual + Number(po.totalAmount)),
-        })
-        .where(eq(budgetItemsTable.id, budgetItem.id));
-    }
-
-    // 4. Log Audit
-    await db.insert(auditLogsTable).values({
-      userId: me.id,
-      activity: `Quality Inspection Passed for ${po.poNumber} (GRN: ${grnNumber}). Stock credited & Project Cost updated.`,
-      resourceType: "purchase_order",
-      resourceId: po.id,
-      status: "success",
+      return upd;
     });
 
     res.json(fPo(updatedPo!));
   } else {
-    // Quality Rejected branch
-    const [updatedPo] = await db
-      .update(purchaseOrdersTable)
-      .set({
-        inspectionStatus: "failed",
-        status: "rejected_and_returned",
-        inspectedById: me.id,
-        inspectedAt: new Date(),
-        inspectionNotes: notes || "Quality check failed. Material returned to vendor.",
-      })
-      .where(eq(purchaseOrdersTable.id, id))
-      .returning();
+    // Quality Rejected branch in atomic transaction
+    const updatedPo = await db.transaction(async (tx) => {
+      const [upd] = await tx
+        .update(purchaseOrdersTable)
+        .set({
+          inspectionStatus: "failed",
+          status: "rejected_and_returned",
+          inspectedById: me.id,
+          inspectedAt: new Date(),
+          inspectionNotes: notes || "Quality check failed. Material returned to vendor.",
+        })
+        .where(eq(purchaseOrdersTable.id, id))
+        .returning();
 
-    await db.insert(auditLogsTable).values({
-      userId: me.id,
-      activity: `Quality Inspection Rejected for ${po.poNumber}. Material returned to vendor.`,
-      resourceType: "purchase_order",
-      resourceId: po.id,
-      status: "rejected",
+      await tx.insert(auditLogsTable).values({
+        userId: me.id,
+        activity: `Quality Inspection Rejected for ${po.poNumber}. Material returned to vendor.`,
+        resourceType: "purchase_order",
+        resourceId: po.id,
+        status: "rejected",
+      });
+
+      return upd;
     });
 
     res.json(fPo(updatedPo!));
@@ -1067,7 +1086,7 @@ router.patch("/purchase-orders/:id", async (req, res): Promise<void> => {
 // ============================================================================
 // 7. Materials & Site Consumption
 // ============================================================================
-router.get("/materials", async (_req, res): Promise<void> => {
+router.get(["/materials", "/procurement/materials"], async (_req, res): Promise<void> => {
   const rows = await db
     .select({ m: materialsTable, p: projectsTable.name })
     .from(materialsTable)
@@ -1076,7 +1095,7 @@ router.get("/materials", async (_req, res): Promise<void> => {
   res.json(rows.map((r) => ({ ...fMat(r.m), projectName: r.p })));
 });
 
-router.post("/materials", async (req, res): Promise<void> => {
+router.post(["/materials", "/procurement/materials"], async (req, res): Promise<void> => {
   const b = req.body ?? {};
   const [m] = await db
     .insert(materialsTable)

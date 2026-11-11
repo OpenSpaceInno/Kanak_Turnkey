@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db, companySettingsTable, auditLogsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { getCurrentUser } from "../lib/session";
+import { requireRole } from "../lib/auth-middleware";
 
 const router: IRouter = Router();
 
@@ -43,7 +44,7 @@ router.get("/settings/company", async (_req, res): Promise<void> => {
   res.json(company);
 });
 
-router.put("/settings/company", async (req, res): Promise<void> => {
+const updateCompanyHandler = async (req: any, res: any): Promise<void> => {
   let [company] = await db.select().from(companySettingsTable).limit(1);
 
   const updates: any = {};
@@ -103,7 +104,10 @@ router.put("/settings/company", async (req, res): Promise<void> => {
   ]);
 
   res.json(result);
-});
+};
+
+router.put("/settings/company", requireRole(["admin"]), updateCompanyHandler);
+router.patch("/settings/company", requireRole(["admin"]), updateCompanyHandler);
 
 export default router;
 

@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { authenticateUser } from "./lib/auth-middleware";
 
 const app: Express = express();
 
@@ -104,6 +105,41 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Resolve user authentication for all API requests
+app.use("/api", authenticateUser);
+
+// Mount API router
 app.use("/api", router);
+
+// Centralized 404 handler for unknown API routes
+app.use("/api", (req: Request, res: Response) => {
+  res.status(404).json({
+    error: `API endpoint not found: ${req.method} ${req.originalUrl}`,
+    statusCode: 404,
+  });
+});
+
+// Centralized Express JSON error handler (avoids default HTML error leaks)
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+  const statusCode = err.status || err.statusCode || 500;
+  const message = err.message || "An unexpected internal server error occurred";
+
+  logger.error(
+    {
+      err,
+      method: req.method,
+      url: req.originalUrl,
+      body: req.body,
+    },
+    "Unhandled exception caught by centralized error handler",
+  );
+
+  res.status(statusCode).json({
+    error: message,
+    statusCode,
+    path: req.originalUrl,
+    timestamp: new Date().toISOString(),
+  });
+});
 
 export default app;

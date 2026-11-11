@@ -253,3 +253,4 @@ export function isRouteAllowedForRole(role: string, path: string): boolean {
     return path === h || path.startsWith(`${h}/`);
   });
 }
+

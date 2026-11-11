@@ -20,10 +20,11 @@ import { numKeys } from "../lib/transforms";
 import { getCurrentUser } from "../lib/session";
 import { generateNumber } from "../lib/numbers";
 import { ensureTrack1ClientBillingSeed } from "../seed";
+import { gateInProduction } from "../lib/auth-middleware";
 
 const router: IRouter = Router();
 
-router.post("/finance/seed-track1", async (_req, res): Promise<void> => {
+router.post("/finance/seed-track1", gateInProduction, async (_req, res): Promise<void> => {
   await ensureTrack1ClientBillingSeed();
   res.json({ success: true, message: "Track 1 Client Billing (AR) demo flow seeded" });
 });
@@ -925,7 +926,7 @@ router.post("/vendor-invoices/:id/process-payment", async (req, res): Promise<vo
   res.json(fVendorInv(vi!));
 });
 
-router.post("/finance/reset-track2-demo", async (req, res): Promise<void> => {
+router.post("/finance/reset-track2-demo", gateInProduction, async (req, res): Promise<void> => {
   await db
     .update(vendorInvoicesTable)
     .set({
@@ -954,7 +955,7 @@ router.post("/finance/reset-track2-demo", async (req, res): Promise<void> => {
   res.json({ success: true, message: "Track 2 demo states reset successfully." });
 });
 
-router.post("/finance/reset-track3-demo", async (req, res): Promise<void> => {
+router.post("/finance/reset-track3-demo", gateInProduction, async (req, res): Promise<void> => {
   await db
     .update(expensesTable)
     .set({

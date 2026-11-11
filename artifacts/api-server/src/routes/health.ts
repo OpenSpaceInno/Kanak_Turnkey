@@ -1,11 +1,26 @@
 import { Router, type IRouter } from "express";
-import { HealthCheckResponse } from "@workspace/api-zod";
+import { sql } from "drizzle-orm";
+import { db } from "@workspace/db";
 
 const router: IRouter = Router();
 
-const handler = (_req: any, res: any) => {
-  const data = HealthCheckResponse.parse({ status: "ok" });
-  res.json(data);
+const handler = async (_req: any, res: any) => {
+  try {
+    await db.execute(sql`SELECT 1`);
+    res.json({
+      status: "ok",
+      database: "healthy",
+      uptime: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    res.status(503).json({
+      status: "error",
+      database: "unhealthy",
+      error: err.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
 };
 
 router.get("/healthz", handler);
