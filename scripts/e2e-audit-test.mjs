@@ -130,7 +130,7 @@ async function runAudit() {
   // 1.3b Verify RBAC protection against unauthorized role operations
   const rbacDelete = await api(`/api/users/9999`, {
     method: "DELETE",
-    userId: 3, // Rahul Verma (site_engineer)
+    userId: 6, // Arjun Singh (viewer)
   });
   if (rbacDelete.status === 403) {
     record("RBAC", "DELETE /api/users/:id blocks unauthorized non-admin role (403)", "PASS");
@@ -140,7 +140,7 @@ async function runAudit() {
 
   const rbacCompany = await api("/api/settings/company", {
     method: "PUT",
-    userId: 3,
+    userId: 6, // Arjun Singh (viewer)
     body: { companyName: "Unauthorized Modification" },
   });
   if (rbacCompany.status === 403) {
