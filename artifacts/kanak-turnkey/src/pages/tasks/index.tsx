@@ -1,10 +1,33 @@
 import { useEffect, useMemo, useState } from "react";
-import { useListTasks, useListProjects, type Task } from "@workspace/api-client-react";
+import {
+  useListTasks,
+  useListProjects,
+  useListUsers,
+  useUpdateTask,
+  useDeleteTask,
+  getListTasksQueryKey,
+  getListProjectsQueryKey,
+  getGetDashboardSummaryQueryKey,
+  type Task,
+  type TaskInput,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 import {
   Select,
   SelectContent,
@@ -20,6 +43,8 @@ import {
   LayoutGrid,
   List as ListIcon,
   GanttChartSquare,
+  Trash2,
+  CheckCircle2,
 } from "lucide-react";
 import {
   format,
@@ -53,6 +78,8 @@ const PRIORITY_VARIANT: Record<string, "destructive" | "secondary" | "outline"> 
 export default function Tasks() {
   const { data: tasks, isLoading } = useListTasks();
   const { data: projects } = useListProjects();
+  const { data: users } = useListUsers();
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [search, setSearch] = useState("");
   const [view, setView] = useState<ViewMode>(() => {
     if (typeof window === "undefined") return "board";
@@ -101,23 +128,23 @@ export default function Tasks() {
           <h1 className="text-3xl font-bold tracking-tight">Tasks</h1>
           <p className="text-muted-foreground">Cross-project task management.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
           <Tabs value={view} onValueChange={v => setView(v as ViewMode)}>
             <TabsList>
-              <TabsTrigger value="board" className="gap-1.5">
+              <TabsTrigger value="board" className="gap-1.5 text-xs sm:text-sm">
                 <LayoutGrid className="h-4 w-4" /> Board
               </TabsTrigger>
-              <TabsTrigger value="list" className="gap-1.5">
+              <TabsTrigger value="list" className="gap-1.5 text-xs sm:text-sm">
                 <ListIcon className="h-4 w-4" /> List
               </TabsTrigger>
-              <TabsTrigger value="gantt" className="gap-1.5">
+              <TabsTrigger value="gantt" className="gap-1.5 text-xs sm:text-sm">
                 <GanttChartSquare className="h-4 w-4" /> Gantt
               </TabsTrigger>
             </TabsList>
           </Tabs>
           <NewTaskDialog
             trigger={
-              <Button className="shrink-0 gap-2">
+              <Button className="shrink-0 gap-1.5 text-xs sm:text-sm">
                 <Plus className="h-4 w-4" /> New Task
               </Button>
             }
@@ -170,13 +197,36 @@ export default function Tasks() {
       </div>
 
       {view === "board" && (
-        <BoardView tasks={filteredTasks} projectMap={projectMap} statuses={[...statuses]} />
+        <BoardView
+          tasks={filteredTasks}
+          projectMap={projectMap}
+          statuses={[...statuses]}
+          onSelectTask={setSelectedTask}
+        />
       )}
       {view === "list" && (
-        <ListView tasks={filteredTasks} projectMap={projectMap} />
+        <ListView
+          tasks={filteredTasks}
+          projectMap={projectMap}
+          onSelectTask={setSelectedTask}
+        />
       )}
       {view === "gantt" && (
-        <GanttView tasks={filteredTasks} projectMap={projectMap} />
+        <GanttView
+          tasks={filteredTasks}
+          projectMap={projectMap}
+          onSelectTask={setSelectedTask}
+        />
+      )}
+
+      {selectedTask && (
+        <EditTaskDialog
+          task={selectedTask}
+          open={!!selectedTask}
+          onOpenChange={(open) => !open && setSelectedTask(null)}
+          projects={projects ?? []}
+          users={users ?? []}
+        />
       )}
     </div>
   );
@@ -186,10 +236,12 @@ function BoardView({
   tasks,
   projectMap,
   statuses,
+  onSelectTask,
 }: {
   tasks: Task[];
   projectMap: Map<number, string>;
   statuses: string[];
+  onSelectTask: (task: Task) => void;
 }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
@@ -207,10 +259,16 @@ function BoardView({
             </div>
             <div className="flex flex-col gap-3">
               {statusTasks.map(task => (
-                <Card key={task.id} className="cursor-pointer hover:border-primary/50 transition-colors">
+                <Card
+                  key={task.id}
+                  onClick={() => onSelectTask(task)}
+                  className="cursor-pointer hover:border-primary/50 transition-all shadow-2xs hover:shadow-sm"
+                >
                   <CardHeader className="p-3 pb-2">
                     <div className="flex justify-between items-start gap-2">
-                      <CardTitle className="text-sm leading-tight font-medium">{task.title}</CardTitle>
+                      <CardTitle className="text-sm leading-tight font-medium hover:text-primary transition-colors">
+                        {task.title}
+                      </CardTitle>
                       <Badge variant={PRIORITY_VARIANT[task.priority]} className="text-[10px] px-1 py-0 h-4">
                         {task.priority}
                       </Badge>
@@ -232,6 +290,14 @@ function BoardView({
                         </span>
                       )}
                     </div>
+                    {task.progress !== undefined && task.progress > 0 && (
+                      <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className="bg-primary h-full transition-all"
+                          style={{ width: `${task.progress}%` }}
+                        />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -251,9 +317,11 @@ function BoardView({
 function ListView({
   tasks,
   projectMap,
+  onSelectTask,
 }: {
   tasks: Task[];
   projectMap: Map<number, string>;
+  onSelectTask: (task: Task) => void;
 }) {
   const sorted = useMemo(
     () =>
@@ -289,9 +357,13 @@ function ListView({
               const due = t.endDate ? new Date(t.endDate) : null;
               const overdue = due && t.status !== "completed" && due < today;
               return (
-                <tr key={t.id} className="hover:bg-accent/40 transition-colors">
+                <tr
+                  key={t.id}
+                  onClick={() => onSelectTask(t)}
+                  className="hover:bg-accent/40 transition-colors cursor-pointer"
+                >
                   <td className="px-4 py-3">
-                    <div className="font-medium">{t.title}</div>
+                    <div className="font-medium hover:text-primary transition-colors">{t.title}</div>
                     {t.description && (
                       <div className="text-xs text-muted-foreground line-clamp-1">{t.description}</div>
                     )}
@@ -349,9 +421,11 @@ function ListView({
 function GanttView({
   tasks,
   projectMap,
+  onSelectTask,
 }: {
   tasks: Task[];
   projectMap: Map<number, string>;
+  onSelectTask: (task: Task) => void;
 }) {
   const dated = useMemo(
     () => tasks.filter(t => t.startDate && t.endDate),
@@ -473,14 +547,20 @@ function GanttView({
                   const widthPct = (span / totalDays) * 100;
                   const meta = STATUS_META[t.status];
                   return (
-                    <div key={t.id} className="flex border-b hover:bg-accent/30 transition-colors">
+                    <div
+                      key={t.id}
+                      onClick={() => onSelectTask(t)}
+                      className="flex border-b hover:bg-accent/30 transition-colors cursor-pointer"
+                    >
                       <div
                         className="shrink-0 px-4 py-2 border-r flex items-center gap-2"
                         style={{ width: labelColWidth }}
                       >
                         <span className={`h-2 w-2 rounded-full shrink-0 ${meta.dot}`} />
                         <div className="min-w-0">
-                          <div className="text-xs font-medium truncate" title={t.title}>{t.title}</div>
+                          <div className="text-xs font-medium truncate hover:text-primary transition-colors" title={t.title}>
+                            {t.title}
+                          </div>
                           <div className="text-[10px] text-muted-foreground truncate">
                             {t.assignedToName ?? "Unassigned"} · {t.priority}
                           </div>
@@ -534,5 +614,267 @@ function GanttView({
         </div>
       </div>
     </Card>
+  );
+}
+
+function EditTaskDialog({
+  task,
+  open,
+  onOpenChange,
+  projects,
+  users,
+}: {
+  task: Task | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  projects: { id: number; name: string }[];
+  users: { id: number; name: string; roles?: string[]; activeRole?: string }[];
+}) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    projectId: 0,
+    assignedToId: "none",
+    status: "todo",
+    priority: "medium",
+    progress: 0,
+    startDate: "",
+    endDate: "",
+  });
+
+  useEffect(() => {
+    if (task) {
+      setForm({
+        title: task.title,
+        description: task.description ?? "",
+        projectId: task.projectId,
+        assignedToId: task.assignedToId ? String(task.assignedToId) : "none",
+        status: task.status,
+        priority: task.priority,
+        progress: task.progress ?? 0,
+        startDate: task.startDate ? task.startDate.slice(0, 10) : "",
+        endDate: task.endDate ? task.endDate.slice(0, 10) : "",
+      });
+    }
+  }, [task]);
+
+  const updateMutation = useUpdateTask({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getListTasksQueryKey() });
+        qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+        toast({ title: "Task updated successfully" });
+        onOpenChange(false);
+      },
+      onError: () => toast({ title: "Failed to update task", variant: "destructive" }),
+    },
+  });
+
+  const deleteMutation = useDeleteTask({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getListTasksQueryKey() });
+        qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+        toast({ title: "Task deleted" });
+        onOpenChange(false);
+      },
+      onError: () => toast({ title: "Failed to delete task", variant: "destructive" }),
+    },
+  });
+
+  if (!task) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Edit Task</DialogTitle>
+          <DialogDescription>
+            Update status, assignment, timeline, or progress percentage.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Task Title *</Label>
+            <Input
+              value={form.title}
+              onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+              placeholder="e.g. Electrical Rough-in"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Project</Label>
+              <Select
+                value={String(form.projectId)}
+                onValueChange={(v) => setForm((p) => ({ ...p, projectId: Number(v) }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
+                <SelectContent>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={String(p.id)}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Assigned Engineer / User</Label>
+              <Select
+                value={form.assignedToId}
+                onValueChange={(v) => setForm((p) => ({ ...p, assignedToId: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Assign user" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {users.map((u) => (
+                    <SelectItem key={u.id} value={String(u.id)}>
+                      {u.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Status</Label>
+              <Select
+                value={form.status}
+                onValueChange={(v) => setForm((p) => ({ ...p, status: v }))}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todo">Todo</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="in_review">In Review</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Priority</Label>
+              <Select
+                value={form.priority}
+                onValueChange={(v) => setForm((p) => ({ ...p, priority: v }))}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Progress ({form.progress}%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={form.progress}
+                onChange={(e) => {
+                  const val = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                  setForm((p) => ({
+                    ...p,
+                    progress: val,
+                    status: val === 100 ? "completed" : val > 0 && p.status === "todo" ? "in_progress" : p.status,
+                  }));
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Start Date</Label>
+              <Input
+                type="date"
+                value={form.startDate}
+                onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Due / End Date</Label>
+              <Input
+                type="date"
+                value={form.endDate}
+                onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Description & Scope</Label>
+            <Textarea
+              rows={3}
+              value={form.description}
+              onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+              placeholder="Task instructions, deliverables, inspection notes..."
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="flex items-center justify-between sm:justify-between w-full">
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="gap-1.5"
+            disabled={deleteMutation.isPending}
+            onClick={() => {
+              if (window.confirm("Are you sure you want to delete this task?")) {
+                deleteMutation.mutate({ id: task.id });
+              }
+            }}
+          >
+            <Trash2 className="h-4 w-4" /> Delete
+          </Button>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={updateMutation.isPending || !form.title.trim()}
+              onClick={() => {
+                updateMutation.mutate({
+                  id: task.id,
+                  data: {
+                    title: form.title,
+                    description: form.description || null,
+                    projectId: form.projectId,
+                    assignedToId: form.assignedToId === "none" ? null : Number(form.assignedToId),
+                    status: form.status as any,
+                    priority: form.priority as any,
+                    progress: Number(form.progress),
+                    startDate: form.startDate || null,
+                    endDate: form.endDate || null,
+                  },
+                });
+              }}
+            >
+              {updateMutation.isPending ? "Saving…" : "Save Changes"}
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

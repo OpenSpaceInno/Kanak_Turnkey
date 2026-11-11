@@ -8,6 +8,10 @@ export type CurrentUser = {
   avatarUrl: string | null;
   roles: string[];
   activeRole: string;
+  phone?: string | null;
+  designation?: string | null;
+  department?: string | null;
+  status?: string | null;
 };
 
 let cachedUser: CurrentUser | null = null;
@@ -23,6 +27,10 @@ export async function getCurrentUser(): Promise<CurrentUser> {
     avatarUrl: user.avatarUrl ?? null,
     roles: user.roles ?? [],
     activeRole: user.activeRole,
+    phone: user.phone ?? null,
+    designation: user.designation ?? null,
+    department: user.department ?? null,
+    status: user.status ?? "active",
   };
   return cachedUser;
 }
@@ -39,4 +47,20 @@ export async function setActiveRole(role: string): Promise<CurrentUser> {
 
 export function clearUserCache() {
   cachedUser = null;
+}
+
+export function setSessionUser(user: any): CurrentUser {
+  cachedUser = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    avatarUrl: user.avatarUrl ?? null,
+    roles: user.roles ?? [],
+    activeRole: user.activeRole || (user.roles && user.roles[0]) || "viewer",
+    phone: user.phone ?? null,
+    designation: user.designation ?? null,
+    department: user.department ?? null,
+    status: user.status ?? "active",
+  };
+  return cachedUser;
 }

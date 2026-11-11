@@ -4,6 +4,7 @@ import {
   useGetCurrentUser,
 } from "@workspace/api-client-react";
 import type { DashboardSummary, ActivityItem } from "@workspace/api-client-react";
+import { Link } from "wouter";
 import {
   Card,
   CardContent,
@@ -11,6 +12,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EngineerFieldHub } from "@/components/dashboard/EngineerFieldHub";
+import { PMCommandHub } from "@/components/dashboard/PMCommandHub";
+import { SupervisorFieldHub } from "@/components/dashboard/SupervisorFieldHub";
+import { StorekeeperFieldHub } from "@/components/dashboard/StorekeeperFieldHub";
+import { SubcontractorPortalHub } from "@/components/dashboard/SubcontractorPortalHub";
 import {
   BarChart,
   Bar,
@@ -34,6 +42,13 @@ import {
   AlertTriangle,
   Award,
   Target,
+  Sparkles,
+  FileCheck,
+  HardHat,
+  Receipt,
+  Settings,
+  Warehouse,
+  ShieldCheck,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -100,18 +115,22 @@ function ActivityFeed({ activity }: { activity: Activity }) {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {activity.slice(0, 5).map((item) => (
-            <div key={item.id} className="flex gap-3 text-sm">
-              <div className="mt-0.5 w-2 h-2 rounded-full bg-primary shrink-0" />
-              <div className="space-y-1">
-                <p className="font-medium leading-none">{item.title}</p>
-                <p className="text-muted-foreground">{item.description}</p>
-                <p className="text-xs text-muted-foreground/70">
-                  {format(new Date(item.createdAt), "MMM d, h:mm a")}
-                </p>
+          {Array.isArray(activity) && activity.length > 0 ? (
+            activity.slice(0, 5).map((item) => (
+              <div key={item.id} className="flex gap-3 text-sm">
+                <div className="mt-0.5 w-2 h-2 rounded-full bg-primary shrink-0" />
+                <div className="space-y-1">
+                  <p className="font-medium leading-none">{item.title}</p>
+                  <p className="text-muted-foreground">{item.description}</p>
+                  <p className="text-xs text-muted-foreground/70">
+                    {format(new Date(item.createdAt), "MMM d, h:mm a")}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">No recent activity</p>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -128,10 +147,10 @@ function AdminDashboard({
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard title="Active Projects" value={summary.totals.projects} icon={Briefcase} />
-        <KpiCard title="Active Leads" value={summary.totals.leads} icon={Users} />
-        <KpiCard title="Pending Tasks" value={summary.totals.tasks} icon={CheckSquare} />
-        <KpiCard title="Active Vendors" value={summary.totals.vendors} icon={Building2} />
+        <KpiCard title="Active Projects" value={summary?.totals?.projects ?? 0} icon={Briefcase} />
+        <KpiCard title="Active Leads" value={summary?.totals?.leads ?? 0} icon={Users} />
+        <KpiCard title="Pending Tasks" value={summary?.totals?.tasks ?? 0} icon={CheckSquare} />
+        <KpiCard title="Active Vendors" value={summary?.totals?.vendors ?? 0} icon={Building2} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -253,7 +272,7 @@ function SalesDashboard({
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard title="Total Leads" value={summary.totals.leads} icon={Users} />
+        <KpiCard title="Total Leads" value={summary?.totals?.leads ?? 0} icon={Users} />
         <KpiCard title="Pipeline Value" value={lakh(totalPipelineValue)} icon={TrendingUp} sub="Total estimated budget" />
         <KpiCard title="Qualified Leads" value={qualified?.count ?? 0} icon={Target} sub={`${inr(qualified?.value ?? 0)} pipeline`} highlight="success" />
         <KpiCard title="Win Rate" value={`${winRate}%`} icon={Award} sub={`${won?.count ?? 0} won · ${lost?.count ?? 0} lost`} highlight={winRate >= 50 ? "success" : "warning"} />
@@ -343,7 +362,7 @@ function EngineerDashboard({
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard title="Active Projects" value={summary.totals.projects} icon={Briefcase} />
+        <KpiCard title="Active Projects" value={summary?.totals?.projects ?? 0} icon={Briefcase} />
         <KpiCard title="Tasks In Progress" value={inProgress?.count ?? 0} icon={TrendingUp} highlight="warning" />
         <KpiCard title="Tasks Pending" value={pending?.count ?? 0} icon={CheckSquare} />
         <KpiCard title="Tasks Completed" value={completed?.count ?? 0} icon={Award} highlight="success" />
@@ -442,7 +461,13 @@ function AccountantDashboard({
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
                     <div
                       className={`h-full rounded-full ${color}`}
-                      style={{ width: `${Math.min(100, (value / summary.financials.totalBudget) * 100)}%` }}
+                      style={{
+                        width: `${
+                          summary.financials.totalBudget > 0
+                            ? Math.min(100, (value / summary.financials.totalBudget) * 100)
+                            : 0
+                        }%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -467,9 +492,9 @@ function ProcurementDashboard({
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard title="Active Vendors" value={summary.totals.vendors} icon={Building2} />
-        <KpiCard title="Active POs" value={summary.procurement.activePos} icon={ShoppingCart} sub="Issued / acknowledged / in transit" />
-        <KpiCard title="Pending Material Reqs" value={summary.procurement.pendingRequests} icon={CheckSquare} highlight={summary.procurement.pendingRequests > 0 ? "warning" : undefined} />
+        <KpiCard title="Active Vendors" value={summary?.totals?.vendors ?? 0} icon={Building2} />
+        <KpiCard title="Active POs" value={summary?.procurement?.activePos ?? 0} icon={ShoppingCart} sub="Issued / acknowledged / in transit" />
+        <KpiCard title="Pending Material Reqs" value={summary?.procurement?.pendingRequests ?? 0} icon={CheckSquare} highlight={(summary?.procurement?.pendingRequests ?? 0) > 0 ? "warning" : undefined} />
         <KpiCard title="Low Stock Alerts" value={summary.procurement.lowStockMaterials} icon={AlertTriangle} highlight={summary.procurement.lowStockMaterials > 0 ? "danger" : undefined} />
       </div>
 
@@ -538,10 +563,10 @@ function ViewerDashboard({
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <KpiCard title="Active Projects" value={summary.totals.projects} icon={Briefcase} />
-        <KpiCard title="Active Leads" value={summary.totals.leads} icon={Users} />
-        <KpiCard title="Pending Tasks" value={summary.totals.tasks} icon={CheckSquare} />
-        <KpiCard title="Active Vendors" value={summary.totals.vendors} icon={Building2} />
+        <KpiCard title="Active Projects" value={summary?.totals?.projects ?? 0} icon={Briefcase} />
+        <KpiCard title="Active Leads" value={summary?.totals?.leads ?? 0} icon={Users} />
+        <KpiCard title="Pending Tasks" value={summary?.totals?.tasks ?? 0} icon={CheckSquare} />
+        <KpiCard title="Active Vendors" value={summary?.totals?.vendors ?? 0} icon={Building2} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -556,13 +581,16 @@ export default function Dashboard() {
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary();
   const { data: activity, isLoading: isLoadingActivity } = useGetRecentActivity();
 
-  const role = user?.activeRole ?? "viewer";
+  const role = (user?.activeRole as string) ?? "viewer";
 
   const titleMap: Record<string, { title: string; subtitle: string }> = {
-    admin: { title: "Dashboard", subtitle: "Full operations command center." },
-    project_manager: { title: "Project Dashboard", subtitle: "Project and lead pipeline overview." },
+    admin: { title: "Executive Dashboard", subtitle: "Full operations command center & multi-role field controls." },
+    project_manager: { title: "PM Command Hub", subtitle: "Project portfolio, health metrics, and pending approvals." },
     sales_manager: { title: "Sales Dashboard", subtitle: "Lead pipeline, funnel health, and conversion metrics." },
-    engineer: { title: "Engineering Dashboard", subtitle: "Project progress and task workload." },
+    engineer: { title: "Site Engineer Hub", subtitle: "1-tap DPR, daily work plan, site drawings, and attendance." },
+    supervisor: { title: "Foreman Field Hub", subtitle: "1-tap gang headcount muster, trade work log, and defect snaps." },
+    storekeeper: { title: "Storekeeper Hub", subtitle: "Goods receipt (GRN), site store issues, and stock levels." },
+    subcontractor: { title: "Subcontractor Portal", subtitle: "Assigned work packages, joint measurement claims, and RA bills." },
     accountant: { title: "Finance Dashboard", subtitle: "Budget utilisation, invoicing, and collections." },
     procurement_officer: { title: "Procurement Dashboard", subtitle: "Purchase orders, material requests, and stock alerts." },
     viewer: { title: "Overview", subtitle: "Read-only snapshot of operations." },
@@ -583,21 +611,198 @@ export default function Dashboard() {
 
   if (!summary || !activity) return null;
 
+  const userExt = user as any;
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
-        <p className="text-muted-foreground">{subtitle}</p>
+      {/* Personalized Welcome & Role Command Strip */}
+      <div className="relative overflow-hidden rounded-xl border bg-gradient-to-r from-card via-card to-primary/5 p-6 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5" />
+                Live Operational Perspective
+              </span>
+              <span className="text-muted-foreground/40">•</span>
+              <span className="text-xs text-muted-foreground">
+                {format(new Date(), "EEEE, MMMM d, yyyy")}
+              </span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-foreground">
+              Welcome back, {user?.name?.split(" ")[0] || "User"}!
+            </h1>
+            <p className="text-sm text-muted-foreground max-w-2xl">
+              Operating as <strong className="text-foreground font-medium">{userExt?.designation || role.replace("_", " ")}</strong>. {subtitle}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
+            {role === "admin" && (
+              <>
+                <Link href="/leads">
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-9">
+                    <FileCheck className="h-3.5 w-3.5 text-primary" />
+                    New Lead
+                  </Button>
+                </Link>
+                <Link href="/finance/ar">
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-9">
+                    <Receipt className="h-3.5 w-3.5 text-amber-600" />
+                    Client Billing
+                  </Button>
+                </Link>
+                <Link href="/settings">
+                  <Button size="sm" className="gap-1.5 text-xs h-9">
+                    <Settings className="h-3.5 w-3.5" />
+                    System Settings
+                  </Button>
+                </Link>
+              </>
+            )}
+
+            {role === "project_manager" && (
+              <>
+                <Link href="/tasks">
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-9">
+                    <CheckSquare className="h-3.5 w-3.5 text-primary" />
+                    Site Tasks
+                  </Button>
+                </Link>
+                <Link href="/projects/1">
+                  <Button size="sm" className="gap-1.5 text-xs h-9">
+                    <HardHat className="h-3.5 w-3.5" />
+                    Log Site DPR
+                  </Button>
+                </Link>
+              </>
+            )}
+
+            {role === "engineer" && (
+              <>
+                <Link href="/projects/1">
+                  <Button size="sm" className="gap-1.5 text-xs h-9">
+                    <HardHat className="h-3.5 w-3.5" />
+                    Daily Site DPR
+                  </Button>
+                </Link>
+                <Link href="/procurement/stock">
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-9">
+                    <ShoppingCart className="h-3.5 w-3.5 text-teal-600" />
+                    Indent Materials
+                  </Button>
+                </Link>
+              </>
+            )}
+
+            {role === "accountant" && (
+              <>
+                <Link href="/finance/ar">
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-9">
+                    <Receipt className="h-3.5 w-3.5 text-amber-600" />
+                    Generate RA Bill
+                  </Button>
+                </Link>
+                <Link href="/finance/ap">
+                  <Button size="sm" className="gap-1.5 text-xs h-9">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Vendor 3-Way Match
+                  </Button>
+                </Link>
+              </>
+            )}
+
+            {role === "procurement_officer" && (
+              <>
+                <Link href="/procurement/orders">
+                  <Button size="sm" className="gap-1.5 text-xs h-9">
+                    <ShoppingCart className="h-3.5 w-3.5" />
+                    Manage RFQs & POs
+                  </Button>
+                </Link>
+                <Link href="/procurement/stock">
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs h-9">
+                    <Warehouse className="h-3.5 w-3.5 text-primary" />
+                    Stock Buffer Levels
+                  </Button>
+                </Link>
+              </>
+            )}
+
+            {role === "sales_manager" && (
+              <>
+                <Link href="/leads">
+                  <Button size="sm" className="gap-1.5 text-xs h-9">
+                    <FileCheck className="h-3.5 w-3.5" />
+                    Register Inquiry
+                  </Button>
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
-      {(role === "admin" || role === "project_manager") && (
-        <AdminDashboard summary={summary} activity={activity} />
+      {role === "project_manager" && (
+        <PMCommandHub />
+      )}
+      {role === "engineer" && (
+        <EngineerFieldHub />
+      )}
+      {role === "supervisor" && (
+        <SupervisorFieldHub />
+      )}
+      {role === "storekeeper" && (
+        <StorekeeperFieldHub />
+      )}
+      {role === "subcontractor" && (
+        <SubcontractorPortalHub />
+      )}
+      {role === "admin" && (
+        <Tabs defaultValue="executive" className="space-y-4">
+          <TabsList className="bg-muted/70 p-1 rounded-xl border border-border/80 flex-wrap h-auto gap-1">
+            <TabsTrigger value="executive" className="gap-1.5 text-xs font-bold">
+              <Sparkles className="w-3.5 h-3.5" /> Executive Command
+            </TabsTrigger>
+            <TabsTrigger value="pm_hub" className="gap-1.5 text-xs font-bold">
+              <Briefcase className="w-3.5 h-3.5" /> PM Portfolio
+            </TabsTrigger>
+            <TabsTrigger value="field_ops" className="gap-1.5 text-xs font-bold">
+              <HardHat className="w-3.5 h-3.5" /> Site Engineer
+            </TabsTrigger>
+            <TabsTrigger value="supervisor_hub" className="gap-1.5 text-xs font-bold">
+              <Users className="w-3.5 h-3.5" /> Supervisor Muster
+            </TabsTrigger>
+            <TabsTrigger value="storekeeper_hub" className="gap-1.5 text-xs font-bold">
+              <Warehouse className="w-3.5 h-3.5" /> Storekeeper
+            </TabsTrigger>
+            <TabsTrigger value="subcontractor_hub" className="gap-1.5 text-xs font-bold">
+              <CheckSquare className="w-3.5 h-3.5" /> Subcontractor
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="executive" className="space-y-6">
+            <AdminDashboard summary={summary} activity={activity} />
+          </TabsContent>
+          <TabsContent value="pm_hub">
+            <PMCommandHub />
+          </TabsContent>
+          <TabsContent value="field_ops">
+            <EngineerFieldHub />
+          </TabsContent>
+          <TabsContent value="supervisor_hub">
+            <SupervisorFieldHub />
+          </TabsContent>
+          <TabsContent value="storekeeper_hub">
+            <StorekeeperFieldHub />
+          </TabsContent>
+          <TabsContent value="subcontractor_hub">
+            <SubcontractorPortalHub />
+          </TabsContent>
+        </Tabs>
       )}
       {role === "sales_manager" && (
         <SalesDashboard summary={summary} activity={activity} />
-      )}
-      {role === "engineer" && (
-        <EngineerDashboard summary={summary} activity={activity} />
       )}
       {role === "accountant" && (
         <AccountantDashboard summary={summary} activity={activity} />

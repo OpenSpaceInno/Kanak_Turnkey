@@ -1,0 +1,45 @@
+{
+  "name": "Turnkey — Field Operations & Construction ERP",
+  "short_name": "Turnkey",
+  "description": "Mobile-first Field Operations, Daily Progress Reports (DPR), Attendance, and Project Execution PWA",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b1329",
+  "theme_color": "#0f172a",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Log Daily DPR",
+      "short_name": "Log DPR",
+      "description": "Quickly record daily site progress and workforce",
+      "url": "/?action=dpr",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Site Attendance",
+      "short_name": "Clock In",
+      "description": "Check in or out of project site",
+      "url": "/?action=attendance",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Report Punch Issue",
+      "short_name": "Report Defect",
+      "description": "Capture site defect or snag with photo",
+      "url": "/?action=punch",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any" }]
+    }
+  ]
+}
+

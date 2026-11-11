@@ -20,6 +20,9 @@ import {
   useGetTaskTemplate, getGetTaskTemplateQueryKey,
   useApplyTaskTemplate,
   useListUsers,
+  useListCommunications,
+  useCreateCommunication,
+  getListCommunicationsQueryKey,
 } from "@workspace/api-client-react";
 import type {
   Project, Task, BudgetItem, RaBill, Stakeholder, PunchListItem,
@@ -45,16 +48,17 @@ import {
   ChevronLeft, Plus, FileText, CheckCircle2, Circle, Clock,
   AlertCircle, CheckCheck, ArrowRight, ClipboardList, LayoutTemplate,
   Pencil, Trash2, Users, IndianRupee, TrendingUp, MoreHorizontal,
+  HardHat, Sun, CloudRain, Hammer, Wrench,
 } from "lucide-react";
 import { format } from "date-fns";
 
 const LIFECYCLE = [
-  { key: "planning",    label: "Planning",    desc: "Project scoping & design" },
+  { key: "planning", label: "Planning", desc: "Project scoping & design" },
   { key: "procurement", label: "Procurement", desc: "Material sourcing & POs" },
-  { key: "execution",   label: "Execution",   desc: "On-site works in progress" },
-  { key: "qc",          label: "QC & Testing",desc: "Quality checks & punch list" },
-  { key: "handover",    label: "Handover",    desc: "Client handover & acceptance" },
-  { key: "archived",    label: "Archived",    desc: "Project closed" },
+  { key: "execution", label: "Execution", desc: "On-site works in progress" },
+  { key: "qc", label: "QC & Testing", desc: "Quality checks & punch list" },
+  { key: "handover", label: "Handover", desc: "Client handover & acceptance" },
+  { key: "archived", label: "Archived", desc: "Project closed" },
 ] as const;
 
 type Stage = typeof LIFECYCLE[number]["key"];
@@ -70,10 +74,10 @@ function prevStage(current: string): Stage | null {
 }
 
 const PL_STATUS: Record<string, { label: string; dot: string; badge: "default" | "secondary" | "outline" | "destructive" }> = {
-  open:        { label: "Open",        dot: "bg-destructive",      badge: "destructive" },
-  in_progress: { label: "In Progress", dot: "bg-amber-500",        badge: "secondary" },
-  resolved:    { label: "Resolved",    dot: "bg-emerald-600",      badge: "default" },
-  closed:      { label: "Closed",      dot: "bg-muted-foreground", badge: "outline" },
+  open: { label: "Open", dot: "bg-destructive", badge: "destructive" },
+  in_progress: { label: "In Progress", dot: "bg-amber-500", badge: "secondary" },
+  resolved: { label: "Resolved", dot: "bg-emerald-600", badge: "default" },
+  closed: { label: "Closed", dot: "bg-muted-foreground", badge: "outline" },
 };
 const PL_PRIORITY: Record<string, "destructive" | "secondary" | "outline"> = {
   high: "destructive", medium: "secondary", low: "outline",
@@ -85,11 +89,11 @@ const DOC_STATUSES = ["draft", "active", "archived"] as const;
 const INR = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 
 const RA_STATUS_META: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  draft:     { label: "Draft",     variant: "outline" },
+  draft: { label: "Draft", variant: "outline" },
   submitted: { label: "Submitted", variant: "secondary" },
-  approved:  { label: "Approved",  variant: "default" },
-  rejected:  { label: "Rejected",  variant: "destructive" },
-  invoiced:  { label: "Invoiced",  variant: "default" },
+  approved: { label: "Approved", variant: "default" },
+  rejected: { label: "Rejected", variant: "destructive" },
+  invoiced: { label: "Invoiced", variant: "default" },
 };
 
 // ─── Edit Project Dialog ───────────────────────────────────────────────────────
@@ -830,6 +834,212 @@ function AddDocumentDialog({ projectId, onSuccess }: { projectId: number; onSucc
   );
 }
 
+// ─── Add Daily Progress Report (DPR) Dialog ──────────────────────────────────
+
+function AddDprDialog({
+  projectId,
+  onSuccess,
+}: {
+  projectId: number;
+  onSuccess: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [dprDate, setDprDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [weather, setWeather] = useState("Sunny & Clear");
+  const [masons, setMasons] = useState("4");
+  const [carpenters, setCarpenters] = useState("6");
+  const [electricians, setElectricians] = useState("2");
+  const [plumbers, setPlumbers] = useState("2");
+  const [painters, setPainters] = useState("0");
+  const [helpers, setHelpers] = useState("8");
+  const [workExecuted, setWorkExecuted] = useState("");
+  const [machinery, setMachinery] = useState("");
+  const [hindrances, setHindrances] = useState("");
+  const [supervisor, setSupervisor] = useState("Site Engineer");
+
+  const create = useCreateCommunication();
+  const { toast } = useToast();
+
+  const totalLabour =
+    (Number(masons) || 0) +
+    (Number(carpenters) || 0) +
+    (Number(electricians) || 0) +
+    (Number(plumbers) || 0) +
+    (Number(painters) || 0) +
+    (Number(helpers) || 0);
+
+  const handleSave = async () => {
+    if (!workExecuted.trim()) {
+      toast({ title: "Work executed description required", variant: "destructive" });
+      return;
+    }
+
+    const dprPayload = {
+      weather,
+      workforce: {
+        masons: Number(masons) || 0,
+        carpenters: Number(carpenters) || 0,
+        electricians: Number(electricians) || 0,
+        plumbers: Number(plumbers) || 0,
+        painters: Number(painters) || 0,
+        helpers: Number(helpers) || 0,
+        total: totalLabour,
+      },
+      workExecuted: workExecuted.trim(),
+      machinery: machinery.trim() || "Standard manual site tools",
+      hindrances: hindrances.trim() || "No site hindrances reported.",
+    };
+
+    const formattedContent = `[DPR_META]${JSON.stringify(dprPayload)}[/DPR_META]\n\n**Work Executed Today:**\n${workExecuted.trim()}\n\n**Machinery & Tools Active:**\n${machinery.trim() || "Standard site tooling"}\n\n**Hindrances / Delays:**\n${hindrances.trim() || "None."}`;
+
+    await create.mutateAsync({
+      data: {
+        projectId,
+        communicationType: "other",
+        subject: `DPR: ${format(new Date(dprDate), "MMM d, yyyy")} — ${totalLabour} Workers (${weather})`,
+        content: formattedContent,
+        participants: supervisor || "Site Supervisor",
+        communicationDate: new Date(dprDate).toISOString(),
+      },
+    });
+
+    toast({ title: "Daily Progress Report Logged", description: `DPR saved with ${totalLabour} workforce on site.` });
+    setOpen(false);
+    setWorkExecuted("");
+    setMachinery("");
+    setHindrances("");
+    onSuccess();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+          <HardHat className="w-4 h-4" /> Log Daily Progress (DPR)
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <HardHat className="w-5 h-5 text-amber-500" />
+            Site Daily Progress Report (DPR)
+          </DialogTitle>
+          <DialogDescription>
+            Record workforce attendance, work completed today, plant & machinery on site, and any impediments.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Report Date *</Label>
+              <Input type="date" value={dprDate} onChange={(e) => setDprDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Weather Condition</Label>
+              <Select value={weather} onValueChange={setWeather}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Sunny & Clear">Sunny & Clear</SelectItem>
+                  <SelectItem value="Partly Cloudy">Partly Cloudy</SelectItem>
+                  <SelectItem value="Rain Hindrance / Wet">Rain Hindrance / Wet</SelectItem>
+                  <SelectItem value="Extreme Heat">Extreme Heat</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Workforce Breakdown */}
+          <div className="p-3 bg-muted/30 rounded-lg border space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Workforce On Site</Label>
+              <Badge variant="secondary" className="font-mono text-xs">
+                Total: {totalLabour} Workers
+              </Badge>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+              <div className="space-y-1 text-center">
+                <span className="text-[10px] text-muted-foreground">Masons</span>
+                <Input type="number" min={0} value={masons} onChange={(e) => setMasons(e.target.value)} className="h-8 text-center text-xs" />
+              </div>
+              <div className="space-y-1 text-center">
+                <span className="text-[10px] text-muted-foreground">Carpenters</span>
+                <Input type="number" min={0} value={carpenters} onChange={(e) => setCarpenters(e.target.value)} className="h-8 text-center text-xs" />
+              </div>
+              <div className="space-y-1 text-center">
+                <span className="text-[10px] text-muted-foreground">Electricians</span>
+                <Input type="number" min={0} value={electricians} onChange={(e) => setElectricians(e.target.value)} className="h-8 text-center text-xs" />
+              </div>
+              <div className="space-y-1 text-center">
+                <span className="text-[10px] text-muted-foreground">Plumbers</span>
+                <Input type="number" min={0} value={plumbers} onChange={(e) => setPlumbers(e.target.value)} className="h-8 text-center text-xs" />
+              </div>
+              <div className="space-y-1 text-center">
+                <span className="text-[10px] text-muted-foreground">Painters</span>
+                <Input type="number" min={0} value={painters} onChange={(e) => setPainters(e.target.value)} className="h-8 text-center text-xs" />
+              </div>
+              <div className="space-y-1 text-center">
+                <span className="text-[10px] text-muted-foreground">Helpers</span>
+                <Input type="number" min={0} value={helpers} onChange={(e) => setHelpers(e.target.value)} className="h-8 text-center text-xs" />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Work Executed Today *</Label>
+            <Textarea
+              rows={3}
+              value={workExecuted}
+              onChange={(e) => setWorkExecuted(e.target.value)}
+              placeholder="e.g. Completed drywall partitions in Room 301-304 (220 sqft). Installed 18 LED ceiling panels. Finished conduit pressure tests."
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Machinery & Plants Active</Label>
+              <Input
+                value={machinery}
+                onChange={(e) => setMachinery(e.target.value)}
+                placeholder="e.g. Scaffolding x 4, Tile cutter x 2"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Supervisor / Engineer</Label>
+              <Input
+                value={supervisor}
+                onChange={(e) => setSupervisor(e.target.value)}
+                placeholder="e.g. Er. Rajesh Kumar"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Hindrances / Stoppages / Remarks</Label>
+            <Textarea
+              rows={2}
+              value={hindrances}
+              onChange={(e) => setHindrances(e.target.value)}
+              placeholder="e.g. Power shutdown from 2-3 PM; Client confirmation awaited on pantry tile finish."
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleSave}
+            disabled={!workExecuted.trim() || create.isPending}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            {create.isPending ? "Submitting…" : "Submit Daily Report"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ProjectDetail() {
@@ -843,30 +1053,48 @@ export default function ProjectDetail() {
   });
 
   const enabled = !!projectId;
-  const { data: tasks }        = useListTasks({ projectId }, { query: { enabled, queryKey: getListTasksQueryKey({ projectId }) } });
-  const { data: budgetItems }  = useListBudgetItems(projectId, { query: { enabled, queryKey: getListBudgetItemsQueryKey(projectId) } });
-  const { data: raBills }      = useListRaBills({ projectId }, { query: { enabled, queryKey: getListRaBillsQueryKey({ projectId }) } });
+  const { data: tasks } = useListTasks({ projectId }, { query: { enabled, queryKey: getListTasksQueryKey({ projectId }) } });
+  const { data: budgetItems } = useListBudgetItems(projectId, { query: { enabled, queryKey: getListBudgetItemsQueryKey(projectId) } });
+  const { data: raBills } = useListRaBills({ projectId }, { query: { enabled, queryKey: getListRaBillsQueryKey({ projectId }) } });
   const { data: stakeholders } = useListStakeholders({ projectId }, { query: { enabled, queryKey: getListStakeholdersQueryKey({ projectId }) } });
-  const { data: documents }    = useListDocuments({ projectId }, { query: { enabled, queryKey: getListDocumentsQueryKey({ projectId }) } });
-  const { data: punchItems }   = useListPunchListItems({ projectId }, { query: { enabled, queryKey: getListPunchListItemsQueryKey({ projectId }) } });
+  const { data: documents } = useListDocuments({ projectId }, { query: { enabled, queryKey: getListDocumentsQueryKey({ projectId }) } });
+  const { data: punchItems } = useListPunchListItems({ projectId }, { query: { enabled, queryKey: getListPunchListItemsQueryKey({ projectId }) } });
+  const { data: communications } = useListCommunications({ projectId }, { query: { enabled, queryKey: getListCommunicationsQueryKey({ projectId }) } });
 
-  const updateProject  = useUpdateProject();
-  const createPunch    = useCreatePunchListItem();
-  const updatePunch    = useUpdatePunchListItem();
-  const deletePunch    = useDeletePunchListItem();
-  const updateRaBill   = useUpdateRaBill();
+  const updateProject = useUpdateProject();
+  const createPunch = useCreatePunchListItem();
+  const updatePunch = useUpdatePunchListItem();
+  const deletePunch = useDeletePunchListItem();
+  const updateRaBill = useUpdateRaBill();
   const delStakeholder = useDeleteStakeholder();
-  const delRaBill      = useDeleteRaBill();
+  const delRaBill = useDeleteRaBill();
 
-  const [activeTab, setActiveTab]     = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      const param = new URLSearchParams(window.location.search).get("tab");
+      if (param && ["overview", "tasks", "dpr", "punchlist", "budget", "rabills", "stakeholders", "documents"].includes(param)) {
+        return param;
+      }
+    }
+    return "overview";
+  });
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tab);
+      window.history.replaceState({}, "", url.toString());
+    }
+  };
   const [advanceOpen, setAdvanceOpen] = useState(false);
-  const [revertOpen, setRevertOpen]   = useState(false);
+  const [revertOpen, setRevertOpen] = useState(false);
   const [revertTarget, setRevertTarget] = useState<Stage | null>(null);
-  const [punchOpen, setPunchOpen]   = useState(false);
-  const [punchForm, setPunchForm]   = useState({ title: "", description: "", category: "general", priority: "medium", dueDate: "" });
-  const [applyOpen, setApplyOpen]   = useState(false);
+  const [punchOpen, setPunchOpen] = useState(false);
+  const [punchForm, setPunchForm] = useState({ title: "", description: "", category: "general", priority: "medium", dueDate: "" });
+  const [applyOpen, setApplyOpen] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
-  const [applyStartDate, setApplyStartDate]         = useState(format(new Date(), "yyyy-MM-dd"));
+  const [applyStartDate, setApplyStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
   const { data: templates } = useListTaskTemplates();
   const { data: previewTemplate } = useGetTaskTemplate(
@@ -876,21 +1104,24 @@ export default function ProjectDetail() {
   const applyTemplate = useApplyTaskTemplate();
 
   if (isLoading) return <div className="p-6">Loading project details...</div>;
-  if (!project)  return <div className="p-6 text-destructive">Project not found</div>;
+  if (!project) return <div className="p-6 text-destructive">Project not found</div>;
 
   const typedProject = project as Project;
-  const projectTasks        = tasks?.filter(t => t.projectId === projectId) || [];
-  const projectBudget       = budgetItems?.filter(b => b.projectId === projectId) || [];
-  const projectRaBills      = raBills?.filter(r => r.projectId === projectId) || [];
+  const projectTasks = tasks?.filter(t => t.projectId === projectId) || [];
+  const projectBudget = budgetItems?.filter(b => b.projectId === projectId) || [];
+  const projectRaBills = raBills?.filter(r => r.projectId === projectId) || [];
   const projectStakeholders = stakeholders?.filter(s => s.projectId === projectId) || [];
-  const projectDocs         = documents?.filter(d => d.projectId === projectId) || [];
-  const projectPunch        = punchItems?.filter(p => p.projectId === projectId) || [];
+  const projectDocs = documents?.filter(d => d.projectId === projectId) || [];
+  const projectPunch = punchItems?.filter(p => p.projectId === projectId) || [];
+  const projectDprs = (communications ?? []).filter(
+    (c) => c.projectId === projectId && c.subject.startsWith("DPR")
+  );
 
-  const openPunch     = projectPunch.filter(p => p.status === "open" || p.status === "in_progress").length;
+  const openPunch = projectPunch.filter(p => p.status === "open" || p.status === "in_progress").length;
   const resolvedPunch = projectPunch.filter(p => p.status === "resolved" || p.status === "closed").length;
 
-  const totalBudgeted  = projectBudget.reduce((s, b) => s + b.budgeted, 0);
-  const totalActual    = projectBudget.reduce((s, b) => s + b.actual, 0);
+  const totalBudgeted = projectBudget.reduce((s, b) => s + b.budgeted, 0);
+  const totalActual = projectBudget.reduce((s, b) => s + b.actual, 0);
   const totalCommitted = projectBudget.reduce((s, b) => s + b.committed, 0);
 
   const currentStageIdx = LIFECYCLE.findIndex(s => s.key === typedProject.status);
@@ -1132,9 +1363,9 @@ export default function ProjectDetail() {
             <CardContent className="px-4 pb-4">
               <ol className="space-y-0">
                 {LIFECYCLE.map((stage, i) => {
-                  const done    = i < currentStageIdx;
+                  const done = i < currentStageIdx;
                   const current = i === currentStageIdx;
-                  const future  = i > currentStageIdx;
+                  const future = i > currentStageIdx;
                   return (
                     <li key={stage.key} className="flex gap-3">
                       <div className="flex flex-col items-center">
@@ -1142,9 +1373,9 @@ export default function ProjectDetail() {
                           title={done ? `Revert to ${stage.label}` : undefined}
                           onClick={done ? () => { setRevertTarget(stage.key as Stage); setRevertOpen(true); } : undefined}
                           className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold transition-opacity
-                            ${done    ? "bg-primary text-primary-foreground cursor-pointer hover:opacity-70" : ""}
+                            ${done ? "bg-primary text-primary-foreground cursor-pointer hover:opacity-70" : ""}
                             ${current ? "bg-amber-500 text-white ring-2 ring-amber-500/30" : ""}
-                            ${future  ? "bg-muted text-muted-foreground" : ""}
+                            ${future ? "bg-muted text-muted-foreground" : ""}
                           `}>
                           {done ? <CheckCheck className="h-3.5 w-3.5" /> : i + 1}
                         </div>
@@ -1178,20 +1409,25 @@ export default function ProjectDetail() {
 
         {/* Main tabs */}
         <div className="md:col-span-3">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent flex-wrap">
+          <Tabs value={activeTab} onValueChange={handleTabChange}>
+            <TabsList className="w-full justify-start h-auto p-1.5 bg-muted/70 border border-border/80 rounded-xl shadow-2xs gap-1.5 flex-nowrap overflow-x-auto sm:flex-wrap scrollbar-none">
               {[
-                { value: "overview",     label: "Overview" },
-                { value: "tasks",        label: `Tasks (${projectTasks.length})` },
-                { value: "punchlist",    label: `Punch List${openPunch > 0 ? ` (${openPunch})` : ""}` },
-                { value: "budget",       label: `Budget (${projectBudget.length})` },
-                { value: "rabills",      label: `RA Bills (${projectRaBills.length})` },
-                { value: "stakeholders", label: `Stakeholders (${projectStakeholders.length})` },
-                { value: "documents",    label: `Documents (${projectDocs.length})` },
+                { value: "overview", label: "Overview", icon: ClipboardList },
+                { value: "tasks", label: `Tasks (${projectTasks.length})`, icon: CheckCircle2 },
+                { value: "dpr", label: `Site DPR (${projectDprs.length})`, icon: HardHat },
+                { value: "punchlist", label: `Punch List${openPunch > 0 ? ` (${openPunch})` : ""}`, icon: AlertCircle },
+                { value: "budget", label: `Budget (${projectBudget.length})`, icon: IndianRupee },
+                { value: "rabills", label: `RA Bills (${projectRaBills.length})`, icon: FileText },
+                { value: "stakeholders", label: `Stakeholders (${projectStakeholders.length})`, icon: Users },
+                { value: "documents", label: `Documents (${projectDocs.length})`, icon: FileText },
               ].map(t => (
-                <TabsTrigger key={t.value} value={t.value}
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent text-sm">
-                  {t.label}
+                <TabsTrigger
+                  key={t.value}
+                  value={t.value}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg"
+                >
+                  <t.icon className="h-3.5 w-3.5" />
+                  <span>{t.label}</span>
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -1324,7 +1560,7 @@ export default function ProjectDetail() {
                     (phases[phase] ??= []).push(t);
                   }
                   const phaseOrder = ["Initiation", "Planning", "Procurement", "Execution", "Closeout", "Other"];
-                  const completed  = projectTasks.filter(t => t.status === "completed").length;
+                  const completed = projectTasks.filter(t => t.status === "completed").length;
                   return (
                     <Card>
                       <CardHeader>
@@ -1334,7 +1570,7 @@ export default function ProjectDetail() {
                       <CardContent className="space-y-4">
                         {phaseOrder.filter(p => phases[p]).map(phase => {
                           const items = phases[phase]!;
-                          const done  = items.filter(t => t.status === "completed").length;
+                          const done = items.filter(t => t.status === "completed").length;
                           return (
                             <div key={phase}>
                               <div className="flex items-center justify-between mb-2">
@@ -1468,6 +1704,128 @@ export default function ProjectDetail() {
                     })}
                   </div>
                 )}
+              </TabsContent>
+
+              {/* ── Daily Progress Reports (DPR) ── */}
+              <TabsContent value="dpr" className="m-0 space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <h3 className="font-semibold text-base flex items-center gap-2">
+                      <HardHat className="h-4 w-4 text-amber-500" />
+                      Daily Site Progress Reports (DPR)
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      On-site workforce headcount logs, physical works executed, plant equipment, and impediment records.
+                    </p>
+                  </div>
+                  <AddDprDialog
+                    projectId={projectId}
+                    onSuccess={() => qc.invalidateQueries({ queryKey: getListCommunicationsQueryKey({ projectId }) })}
+                  />
+                </div>
+
+                {projectDprs.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <Card>
+                      <CardContent className="p-3.5 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Latest Headcount</p>
+                          <p className="text-xl font-bold font-mono text-emerald-600">
+                            {(() => {
+                              const match = projectDprs[0]?.subject.match(/(\d+)\s+Workers/);
+                              return match ? `${match[1]} Workers` : "Active";
+                            })()}
+                          </p>
+                        </div>
+                        <HardHat className="w-8 h-8 text-emerald-500/30" />
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="p-3.5 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total DPRs Logged</p>
+                          <p className="text-xl font-bold font-mono text-primary">{projectDprs.length} Days</p>
+                        </div>
+                        <Clock className="w-8 h-8 text-primary/30" />
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardContent className="p-3.5 flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Audit & Verification</p>
+                          <p className="text-xl font-bold font-mono text-blue-600">Verified</p>
+                        </div>
+                        <CheckCircle2 className="w-8 h-8 text-blue-500/30" />
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {projectDprs.map((dpr) => {
+                    const dprMetaMatch = (dpr.content ?? "").match(/\[DPR_META\]([\s\S]*?)\[\/DPR_META\]/);
+                    let meta: any = null;
+                    if (dprMetaMatch) {
+                      try {
+                        meta = JSON.parse(dprMetaMatch[1]);
+                      } catch { }
+                    }
+
+                    const cleanContent = (dpr.content ?? "").replace(/\[DPR_META\][\s\S]*?\[\/DPR_META\]\n*/, "");
+
+                    return (
+                      <Card key={dpr.id} className="hover:border-primary/40 transition-colors">
+                        <CardHeader className="p-4 pb-2">
+                          <div className="flex items-start justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <span className="p-1.5 rounded-md bg-amber-500/10 text-amber-600">
+                                <HardHat className="w-4 h-4" />
+                              </span>
+                              <div>
+                                <CardTitle className="text-sm font-semibold">{dpr.subject}</CardTitle>
+                                <p className="text-xs text-muted-foreground">
+                                  Logged by {dpr.participants || "Site Engineer"} · {format(new Date(dpr.communicationDate), "EEEE, MMMM d, yyyy")}
+                                </p>
+                              </div>
+                            </div>
+                            {meta?.weather && (
+                              <Badge variant="outline" className="text-xs gap-1 bg-muted/40">
+                                {meta.weather.includes("Rain") ? <CloudRain className="w-3 h-3 text-sky-500" /> : <Sun className="w-3 h-3 text-amber-500" />}
+                                {meta.weather}
+                              </Badge>
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-1 space-y-3 text-xs">
+                          {meta?.workforce && (
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {meta.workforce.masons > 0 && <Badge variant="secondary" className="text-[11px]">🧱 {meta.workforce.masons} Masons</Badge>}
+                              {meta.workforce.carpenters > 0 && <Badge variant="secondary" className="text-[11px]">🪚 {meta.workforce.carpenters} Carpenters</Badge>}
+                              {meta.workforce.electricians > 0 && <Badge variant="secondary" className="text-[11px]">⚡ {meta.workforce.electricians} Electricians</Badge>}
+                              {meta.workforce.plumbers > 0 && <Badge variant="secondary" className="text-[11px]">🔧 {meta.workforce.plumbers} Plumbers</Badge>}
+                              {meta.workforce.painters > 0 && <Badge variant="secondary" className="text-[11px]">🎨 {meta.workforce.painters} Painters</Badge>}
+                              {meta.workforce.helpers > 0 && <Badge variant="secondary" className="text-[11px]">👷 {meta.workforce.helpers} Helpers</Badge>}
+                            </div>
+                          )}
+
+                          <div className="p-3 bg-muted/20 rounded-md border text-xs leading-relaxed text-foreground whitespace-pre-wrap font-sans">
+                            {cleanContent || dpr.content}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+
+                  {projectDprs.length === 0 && (
+                    <div className="text-center py-12 border rounded-lg border-dashed text-muted-foreground">
+                      <HardHat className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                      <p className="font-medium text-sm">No Daily Progress Reports (DPR) logged yet.</p>
+                      <p className="text-xs mt-1">Site supervisors can click "Log Daily Progress" to record daily workforce and work executed.</p>
+                    </div>
+                  )}
+                </div>
               </TabsContent>
 
               {/* ── Punch List ── */}

@@ -1,6 +1,6 @@
 import { useParams, Link, useLocation } from "wouter";
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   useGetLead,
   getGetLeadQueryKey,
@@ -14,10 +14,12 @@ import {
   useCreateBoq,
   useUpdateBoq,
   useGetBoq,
+  getGetBoqQueryKey,
   useAddBoqItem,
   useDeleteBoqItem,
   useCreateNegotiation,
   useUpdateNegotiation,
+  useListUsers,
   getListLeadsQueryKey,
   getListProjectsQueryKey,
   getGetDashboardSummaryQueryKey,
@@ -78,6 +80,10 @@ import {
   ChevronDown,
   ChevronUp,
   AlertCircle,
+  Pencil,
+  Check,
+  X,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -466,11 +472,15 @@ type SiteVisitRow = SiteVisit & { engineerName?: string | null };
 function SiteVisitsTab({ leadId, visits }: { leadId: number; visits: SiteVisitRow[] }) {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { data: users } = useListUsers();
   const [open, setOpen] = useState(false);
   const blank = {
     visitDate: new Date().toISOString().slice(0, 10),
     visitTime: "",
+    engineerId: "",
     siteAddress: "",
+    latitude: "",
+    longitude: "",
     measurements: "",
     observations: "",
     status: "pending" as SiteVisitInput["status"],
@@ -512,10 +522,10 @@ function SiteVisitsTab({ leadId, visits }: { leadId: number; visits: SiteVisitRo
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Schedule Site Visit</DialogTitle>
-            <DialogDescription>Plan a visit to the project site.</DialogDescription>
+            <DialogDescription>Plan a survey and measurement visit to the project site.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
@@ -536,14 +546,56 @@ function SiteVisitsTab({ leadId, visits }: { leadId: number; visits: SiteVisitRo
                 />
               </div>
             </div>
+
+            <div className="space-y-1.5">
+              <Label>Assigned Engineer</Label>
+              <Select
+                value={form.engineerId}
+                onValueChange={(v) => setForm((p) => ({ ...p, engineerId: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Select engineer" /></SelectTrigger>
+                <SelectContent>
+                  {users?.map((u) => (
+                    <SelectItem key={u.id} value={String(u.id)}>
+                      {u.name} ({u.roles?.includes("engineer") ? "Site Engineer" : u.activeRole || "Team"})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-1.5">
               <Label>Site Address</Label>
               <Input
                 value={form.siteAddress}
                 onChange={(e) => setForm((p) => ({ ...p, siteAddress: e.target.value }))}
-                placeholder="Full site address"
+                placeholder="Full site location & access notes"
               />
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Latitude (optional)</Label>
+                <Input
+                  type="number"
+                  step="any"
+                  placeholder="e.g. 19.0596"
+                  value={form.latitude}
+                  onChange={(e) => setForm((p) => ({ ...p, latitude: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Longitude (optional)</Label>
+                <Input
+                  type="number"
+                  step="any"
+                  placeholder="e.g. 72.8295"
+                  value={form.longitude}
+                  onChange={(e) => setForm((p) => ({ ...p, longitude: e.target.value }))}
+                />
+              </div>
+            </div>
+
             <div className="space-y-1.5">
               <Label>Status</Label>
               <Select
@@ -558,22 +610,24 @@ function SiteVisitsTab({ leadId, visits }: { leadId: number; visits: SiteVisitRo
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-1.5">
               <Label>Measurements</Label>
               <Textarea
                 value={form.measurements}
                 onChange={(e) => setForm((p) => ({ ...p, measurements: e.target.value }))}
                 rows={2}
-                placeholder="Area, dimensions etc."
+                placeholder="Total carpet area, slab dimensions, ceiling heights..."
               />
             </div>
+
             <div className="space-y-1.5">
               <Label>Observations</Label>
               <Textarea
                 value={form.observations}
                 onChange={(e) => setForm((p) => ({ ...p, observations: e.target.value }))}
                 rows={2}
-                placeholder="Site conditions, access notes etc."
+                placeholder="Structural condition, electrical intake, access constraints..."
               />
             </div>
           </div>
@@ -587,7 +641,10 @@ function SiteVisitsTab({ leadId, visits }: { leadId: number; visits: SiteVisitRo
                   data: {
                     visitDate: form.visitDate,
                     visitTime: form.visitTime || undefined,
+                    engineerId: form.engineerId ? Number(form.engineerId) : undefined,
                     siteAddress: form.siteAddress || undefined,
+                    latitude: form.latitude ? Number(form.latitude) : undefined,
+                    longitude: form.longitude ? Number(form.longitude) : undefined,
                     measurements: form.measurements || undefined,
                     observations: form.observations || undefined,
                     status: form.status,
@@ -615,6 +672,16 @@ function SiteVisitsTab({ leadId, visits }: { leadId: number; visits: SiteVisitRo
                       <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium capitalize", statusColor[v.status] ?? "bg-muted text-muted-foreground")}>
                         {v.status}
                       </span>
+                      {"engineerName" in v && v.engineerName && (
+                        <Badge variant="outline" className="text-xs bg-muted/40">
+                          Engineer: {v.engineerName as string}
+                        </Badge>
+                      )}
+                      {v.latitude != null && v.longitude != null && (
+                        <Badge variant="secondary" className="text-xs font-mono">
+                          📍 {Number(v.latitude).toFixed(4)}, {Number(v.longitude).toFixed(4)}
+                        </Badge>
+                      )}
                     </div>
                     {v.siteAddress && (
                       <div className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -623,9 +690,6 @@ function SiteVisitsTab({ leadId, visits }: { leadId: number; visits: SiteVisitRo
                     )}
                     {v.measurements && <p className="text-sm"><span className="font-medium">Measurements:</span> {v.measurements}</p>}
                     {v.observations && <p className="text-sm"><span className="font-medium">Observations:</span> {v.observations}</p>}
-                    {"engineerName" in v && v.engineerName && (
-                      <p className="text-xs text-muted-foreground">Engineer: {v.engineerName as string}</p>
-                    )}
                   </div>
                   {v.status === "pending" && (
                     <Button
@@ -664,6 +728,10 @@ function DrawingsTab({ leadId, drawings }: { leadId: number; drawings: DrawingRo
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ fileName: "", fileType: "", version: "1" });
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewTarget, setReviewTarget] = useState<DrawingRow | null>(null);
+  const [reviewStatus, setReviewStatus] = useState<string>("approved");
+  const [reviewComments, setReviewComments] = useState<string>("");
 
   const create = useCreateDrawing({
     mutation: {
@@ -759,6 +827,59 @@ function DrawingsTab({ leadId, drawings }: { leadId: number; drawings: DrawingRo
         </DialogContent>
       </Dialog>
 
+      <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Review Drawing — {reviewTarget?.fileName}</DialogTitle>
+            <DialogDescription>
+              Submit formal architectural or MEP coordination review feedback for version {reviewTarget?.version}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Approval Decision</Label>
+              <Select value={reviewStatus} onValueChange={setReviewStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="approved">Approve Drawing</SelectItem>
+                  <SelectItem value="rejected">Reject / Revisions Needed</SelectItem>
+                  <SelectItem value="submitted">Mark Under Review</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Reviewer Comments / Observations</Label>
+              <Textarea
+                value={reviewComments}
+                onChange={(e) => setReviewComments(e.target.value)}
+                rows={3}
+                placeholder="Compliance with bylaws, MEP corridor clearances, design remarks..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReviewOpen(false)}>Cancel</Button>
+            <Button
+              disabled={patchDrawing.isPending}
+              onClick={() => {
+                if (reviewTarget) {
+                  patchDrawing.mutate({
+                    id: reviewTarget.id,
+                    data: {
+                      status: reviewStatus as DrawingUpdate["status"],
+                      reviewerComments: reviewComments || undefined,
+                    },
+                  });
+                  setReviewOpen(false);
+                }
+              }}
+            >
+              {patchDrawing.isPending ? "Submitting…" : "Save Review"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {drawings.length > 0 ? (
         <div className="space-y-3">
           {drawings.map((d) => (
@@ -781,7 +902,9 @@ function DrawingsTab({ leadId, drawings }: { leadId: number; drawings: DrawingRo
                         </p>
                       )}
                       {d.reviewerComments && (
-                        <p className="text-sm italic text-muted-foreground">"{d.reviewerComments}"</p>
+                        <p className="text-sm italic text-muted-foreground bg-muted/40 p-2 rounded-md">
+                          "{d.reviewerComments}"
+                        </p>
                       )}
                       {"uploadedByName" in d && d.uploadedByName && (
                         <p className="text-xs text-muted-foreground/60">
@@ -794,6 +917,18 @@ function DrawingsTab({ leadId, drawings }: { leadId: number; drawings: DrawingRo
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setReviewTarget(d);
+                        setReviewStatus(d.status === "approved" ? "approved" : d.status === "rejected" ? "rejected" : "approved");
+                        setReviewComments(d.reviewerComments || "");
+                        setReviewOpen(true);
+                      }}
+                    >
+                      Review
+                    </Button>
                     {nextStatus[d.status] && (
                       <Button
                         size="sm"
@@ -801,16 +936,6 @@ function DrawingsTab({ leadId, drawings }: { leadId: number; drawings: DrawingRo
                         onClick={() => patchDrawing.mutate({ id: d.id, data: { status: nextStatus[d.status] } })}
                       >
                         → {nextStatus[d.status]}
-                      </Button>
-                    )}
-                    {d.status !== "rejected" && d.status !== "approved" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => patchDrawing.mutate({ id: d.id, data: { status: "rejected" } })}
-                      >
-                        Reject
                       </Button>
                     )}
                   </div>
@@ -830,7 +955,7 @@ function DrawingsTab({ leadId, drawings }: { leadId: number; drawings: DrawingRo
 
 // ─── BOQ Items Panel ──────────────────────────────────────────────────────────
 
-function BOQItemsPanel({ boqId, onClose }: { boqId: number; onClose: () => void }) {
+function BOQItemsPanel({ boqId, leadId, onClose }: { boqId: number; leadId: number; onClose: () => void }) {
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data: boq, isLoading } = useGetBoq(boqId);
@@ -844,12 +969,73 @@ function BOQItemsPanel({ boqId, onClose }: { boqId: number; onClose: () => void 
     marginPercent: "12",
   });
 
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({
+    itemName: "",
+    category: "",
+    quantity: "",
+    unit: "sqft",
+    unitPrice: "",
+    taxPercent: "18",
+    marginPercent: "12",
+  });
+
+  const updateItemMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Record<string, unknown> }) => {
+      const res = await fetch(`/api/boq-items/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to update item");
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: getGetBoqQueryKey(boqId) });
+      qc.invalidateQueries({ queryKey: getGetLeadQueryKey(leadId) });
+      setEditingId(null);
+      toast({ title: "BOQ item updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update BOQ item", variant: "destructive" });
+    },
+  });
+
+  const startEdit = (item: any) => {
+    setEditingId(item.id);
+    setEditForm({
+      itemName: item.itemName ?? "",
+      category: item.category ?? "",
+      quantity: String(item.quantity ?? ""),
+      unit: item.unit ?? "sqft",
+      unitPrice: String(item.unitPrice ?? ""),
+      taxPercent: String(item.taxPercent ?? "18"),
+      marginPercent: String(item.marginPercent ?? "12"),
+    });
+  };
+
+  const saveEdit = (id: number) => {
+    updateItemMutation.mutate({
+      id,
+      data: {
+        itemName: editForm.itemName,
+        category: editForm.category || undefined,
+        quantity: Number(editForm.quantity),
+        unit: editForm.unit || undefined,
+        unitPrice: Number(editForm.unitPrice),
+        taxPercent: Number(editForm.taxPercent),
+        marginPercent: Number(editForm.marginPercent),
+      },
+    });
+  };
+
   const addItem = useAddBoqItem({
     mutation: {
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: ["getBoq", boqId] });
+        qc.invalidateQueries({ queryKey: getGetBoqQueryKey(boqId) });
+        qc.invalidateQueries({ queryKey: getGetLeadQueryKey(leadId) });
         setForm((p) => ({ ...p, itemName: "", category: "", quantity: "", unitPrice: "" }));
-        toast({ title: "Item added" });
+        toast({ title: "Item added to BOQ" });
       },
     },
   });
@@ -857,8 +1043,9 @@ function BOQItemsPanel({ boqId, onClose }: { boqId: number; onClose: () => void 
   const deleteItem = useDeleteBoqItem({
     mutation: {
       onSuccess: () => {
-        qc.invalidateQueries({ queryKey: ["getBoq", boqId] });
-        toast({ title: "Item removed" });
+        qc.invalidateQueries({ queryKey: getGetBoqQueryKey(boqId) });
+        qc.invalidateQueries({ queryKey: getGetLeadQueryKey(leadId) });
+        toast({ title: "Item removed from BOQ" });
       },
     },
   });
@@ -869,12 +1056,32 @@ function BOQItemsPanel({ boqId, onClose }: { boqId: number; onClose: () => void 
   const typed = boq as BoqDetail;
   const items = typed.items ?? [];
 
+  const categoryTotals = items.reduce((acc, it) => {
+    const cat = it.category || "General";
+    acc[cat] = (acc[cat] || 0) + (Number(it.totalPrice) || 0);
+    return acc;
+  }, {} as Record<string, number>);
+
   return (
     <div className="border-t p-4 space-y-4 bg-muted/30">
       <div className="flex items-center justify-between">
-        <h4 className="font-semibold text-sm">Line Items — BOQ v{typed.version}</h4>
+        <div>
+          <h4 className="font-semibold text-sm">Line Items — BOQ v{typed.version}</h4>
+          <p className="text-xs text-muted-foreground">Detailed rate analysis, margins, and taxes</p>
+        </div>
         <Button size="sm" variant="ghost" onClick={onClose}><ChevronUp className="w-4 h-4" /></Button>
       </div>
+
+      {items.length > 0 && Object.keys(categoryTotals).length > 0 && (
+        <div className="flex flex-wrap gap-2 pt-1 pb-1">
+          {Object.entries(categoryTotals).map(([cat, total]) => (
+            <div key={cat} className="px-2.5 py-1 rounded-md bg-card border text-[11px] flex items-center gap-1.5 shadow-2xs">
+              <span className="text-muted-foreground font-medium">{cat}:</span>
+              <span className="font-bold text-foreground">{INR(total)}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {items.length > 0 ? (
         <div className="overflow-x-auto">
@@ -889,27 +1096,138 @@ function BOQItemsPanel({ boqId, onClose }: { boqId: number; onClose: () => void 
                 <th className="py-2 pr-3 text-right">Tax%</th>
                 <th className="py-2 pr-3 text-right">Margin%</th>
                 <th className="py-2 text-right">Total</th>
-                <th className="py-2" />
+                <th className="py-2 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {items.map((it) => (
-                <tr key={it.id} className="hover:bg-muted/50">
-                  <td className="py-2 pr-3 font-medium">{it.itemName}</td>
-                  <td className="py-2 pr-3 text-muted-foreground">{it.category ?? "—"}</td>
-                  <td className="py-2 pr-3 text-right">{it.quantity}</td>
-                  <td className="py-2 pr-3">{it.unit ?? "—"}</td>
-                  <td className="py-2 pr-3 text-right">{INR(it.unitPrice)}</td>
-                  <td className="py-2 pr-3 text-right">{it.taxPercent}%</td>
-                  <td className="py-2 pr-3 text-right">{it.marginPercent}%</td>
-                  <td className="py-2 text-right font-semibold">{INR(it.totalPrice)}</td>
-                  <td className="py-2 pl-2">
-                    <button onClick={() => deleteItem.mutate({ id: it.id })} className="text-destructive hover:text-destructive/80">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {items.map((it) => {
+                const isEditing = editingId === it.id;
+                if (isEditing) {
+                  const q = Number(editForm.quantity) || 0;
+                  const up = Number(editForm.unitPrice) || 0;
+                  const tax = Number(editForm.taxPercent) || 0;
+                  const margin = Number(editForm.marginPercent) || 0;
+                  const liveBase = q * up;
+                  const liveTotal = liveBase + (liveBase * tax) / 100 + (liveBase * margin) / 100;
+
+                  return (
+                    <tr key={it.id} className="bg-primary/5">
+                      <td className="py-2 pr-2">
+                        <Input
+                          value={editForm.itemName}
+                          onChange={(e) => setEditForm((p) => ({ ...p, itemName: e.target.value }))}
+                          className="h-7 text-xs"
+                          placeholder="Item Name"
+                        />
+                      </td>
+                      <td className="py-2 pr-2">
+                        <Input
+                          value={editForm.category}
+                          onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value }))}
+                          className="h-7 text-xs w-24"
+                          placeholder="Category"
+                        />
+                      </td>
+                      <td className="py-2 pr-2 text-right">
+                        <Input
+                          type="number"
+                          value={editForm.quantity}
+                          onChange={(e) => setEditForm((p) => ({ ...p, quantity: e.target.value }))}
+                          className="h-7 text-xs w-20 text-right"
+                        />
+                      </td>
+                      <td className="py-2 pr-2">
+                        <Input
+                          value={editForm.unit}
+                          onChange={(e) => setEditForm((p) => ({ ...p, unit: e.target.value }))}
+                          className="h-7 text-xs w-16"
+                        />
+                      </td>
+                      <td className="py-2 pr-2 text-right">
+                        <Input
+                          type="number"
+                          value={editForm.unitPrice}
+                          onChange={(e) => setEditForm((p) => ({ ...p, unitPrice: e.target.value }))}
+                          className="h-7 text-xs w-24 text-right"
+                        />
+                      </td>
+                      <td className="py-2 pr-2 text-right">
+                        <Input
+                          type="number"
+                          value={editForm.taxPercent}
+                          onChange={(e) => setEditForm((p) => ({ ...p, taxPercent: e.target.value }))}
+                          className="h-7 text-xs w-16 text-right"
+                        />
+                      </td>
+                      <td className="py-2 pr-2 text-right">
+                        <Input
+                          type="number"
+                          value={editForm.marginPercent}
+                          onChange={(e) => setEditForm((p) => ({ ...p, marginPercent: e.target.value }))}
+                          className="h-7 text-xs w-16 text-right"
+                        />
+                      </td>
+                      <td className="py-2 text-right font-semibold text-primary">
+                        {INR(liveTotal)}
+                      </td>
+                      <td className="py-2 pl-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                            disabled={updateItemMutation.isPending || !editForm.itemName}
+                            onClick={() => saveEdit(it.id)}
+                            title="Save Changes"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={() => setEditingId(null)}
+                            title="Cancel"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+
+                return (
+                  <tr key={it.id} className="hover:bg-muted/50">
+                    <td className="py-2 pr-3 font-medium">{it.itemName}</td>
+                    <td className="py-2 pr-3 text-muted-foreground">{it.category ?? "—"}</td>
+                    <td className="py-2 pr-3 text-right">{it.quantity}</td>
+                    <td className="py-2 pr-3">{it.unit ?? "—"}</td>
+                    <td className="py-2 pr-3 text-right">{INR(it.unitPrice)}</td>
+                    <td className="py-2 pr-3 text-right">{it.taxPercent}%</td>
+                    <td className="py-2 pr-3 text-right">{it.marginPercent}%</td>
+                    <td className="py-2 text-right font-semibold">{INR(it.totalPrice)}</td>
+                    <td className="py-2 pl-2 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => startEdit(it)}
+                          className="text-muted-foreground hover:text-primary p-1 rounded hover:bg-muted"
+                          title="Edit Item"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => deleteItem.mutate({ id: it.id })}
+                          className="text-destructive hover:text-destructive/80 p-1 rounded hover:bg-destructive/10"
+                          title="Delete Item"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1091,7 +1409,7 @@ function BOQTab({ leadId, boqs }: { leadId: number; boqs: BoqRow[] }) {
                   </div>
                 </div>
               </div>
-              {expandedId === b.id && <BOQItemsPanel boqId={b.id} onClose={() => setExpandedId(null)} />}
+              {expandedId === b.id && <BOQItemsPanel boqId={b.id} leadId={leadId} onClose={() => setExpandedId(null)} />}
             </div>
           ))}
         </div>
@@ -1140,6 +1458,10 @@ function NegotiationsTab({ leadId, negotiations }: { leadId: number; negotiation
     rejected: "bg-red-100 text-red-700",
   };
 
+  const latestApprovedRound = negotiations
+    .filter((n) => n.status === "approved")
+    .slice(-1)[0];
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -1147,6 +1469,23 @@ function NegotiationsTab({ leadId, negotiations }: { leadId: number; negotiation
           <Plus className="w-4 h-4" /> New Round
         </Button>
       </div>
+
+      {latestApprovedRound && (
+        <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="font-semibold text-sm">
+                Commercials Finalized at {INR(Number(latestApprovedRound.revisedAmount))}
+              </span>
+              <Badge className="bg-emerald-600 text-white text-[10px]">Round {latestApprovedRound.roundNumber}</Badge>
+            </div>
+            <p className="text-xs text-emerald-700">
+              Discount terms approved. You are ready to close this deal and convert the lead into an active project.
+            </p>
+          </div>
+        </div>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -1228,8 +1567,8 @@ function NegotiationsTab({ leadId, negotiations }: { leadId: number; negotiation
                         {n.status}
                       </span>
                       {n.requiresApproval && (
-                        <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                          Requires Approval
+                        <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 bg-amber-50">
+                          Discount &gt;10% — Policy Approval Required
                         </Badge>
                       )}
                     </div>
@@ -1295,8 +1634,39 @@ export default function LeadDetail() {
   const [projectName, setProjectName] = useState("");
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
 
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      const param = new URLSearchParams(window.location.search).get("tab");
+      if (param && ["activities", "site_visits", "drawings", "boqs", "negotiations"].includes(param)) {
+        return param;
+      }
+    }
+    return "activities";
+  });
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tab);
+      window.history.replaceState({}, "", url.toString());
+    }
+  };
+
   const { data: lead, isLoading } = useGetLead(leadId, {
     query: { enabled: !!leadId, queryKey: getGetLeadQueryKey(leadId) },
+  });
+
+  const advanceMutation = useUpdateLead({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getGetLeadQueryKey(leadId) });
+        qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetLeadsSummaryQueryKey() });
+        toast({ title: "Stage advanced successfully" });
+      },
+      onError: () => toast({ title: "Failed to advance stage", variant: "destructive" }),
+    },
   });
 
   const convertMutation = useConvertLead({
@@ -1332,6 +1702,7 @@ export default function LeadDetail() {
 
   const isWon = typedLead.status === "won";
   const isLost = typedLead.status === "lost";
+  const currentIdx = STAGES.findIndex((s) => s.key === typedLead.stage);
 
   return (
     <div className="space-y-6">
@@ -1350,20 +1721,46 @@ export default function LeadDetail() {
           {typedLead.company && <p className="text-muted-foreground text-sm mt-0.5">{typedLead.company}</p>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {isWon && typedLead.wonProjectId ? (
-            <Button asChild className="gap-2">
-              <Link href={`/projects/${typedLead.wonProjectId}`}>View Project <ArrowRight className="h-4 w-4" /></Link>
+          {typedLead.wonProjectId ? (
+            <Button asChild className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
+              <Link href={`/projects/${typedLead.wonProjectId}`}>
+                View Project <ArrowRight className="h-4 w-4" />
+              </Link>
             </Button>
-          ) : !isLost && !isWon ? (
-            <Button
-              className="gap-2"
-              onClick={() => {
-                setProjectName(`${typedLead.customerName}${typedLead.projectType ? ` — ${typedLead.projectType}` : ""}`);
-                setConvertOpen(true);
-              }}
-            >
-              <Trophy className="h-4 w-4" /> Mark as Won
-            </Button>
+          ) : !isLost ? (
+            <>
+              {currentIdx < STAGES.length - 1 && !isWon && (
+                <Button
+                  variant="outline"
+                  className="gap-2 text-primary border-primary/30 hover:bg-primary/10"
+                  disabled={advanceMutation.isPending}
+                  onClick={() => {
+                    const nextStage = STAGES[currentIdx + 1]?.key;
+                    if (nextStage) {
+                      advanceMutation.mutate({
+                        id: typedLead.id,
+                        data: {
+                          customerName: typedLead.customerName,
+                          stage: nextStage as LeadInput["stage"],
+                          status: nextStage === "finalization" ? "won" : typedLead.status,
+                        },
+                      });
+                    }
+                  }}
+                >
+                  Advance to {STAGES[currentIdx + 1]?.label} <ArrowRight className="h-4 w-4" />
+                </Button>
+              )}
+              <Button
+                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                onClick={() => {
+                  setProjectName(`${typedLead.customerName}${typedLead.projectType ? ` — ${typedLead.projectType}` : ""}`);
+                  setConvertOpen(true);
+                }}
+              >
+                <Building2 className="h-4 w-4" /> Convert to Project
+              </Button>
+            </>
           ) : null}
           <Button variant="outline" className="gap-2" onClick={() => setEditOpen(true)}>
             <Edit className="h-4 w-4" /> Edit
@@ -1482,23 +1879,32 @@ export default function LeadDetail() {
 
         {/* Tabs */}
         <div className="md:col-span-2">
-          <Tabs defaultValue="activities">
-            <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-1 flex-wrap">
+          <Tabs value={activeTab} onValueChange={handleTabChange}>
+            <TabsList className="w-full justify-start h-auto p-1.5 bg-muted/70 border border-border/80 rounded-xl shadow-2xs gap-1.5 flex-wrap">
               {[
-                { value: "activities", label: `Activities${typedLead.activities?.length ? ` (${typedLead.activities.length})` : ""}` },
-                { value: "site_visits", label: `Site Visits${typedLead.siteVisits?.length ? ` (${typedLead.siteVisits.length})` : ""}` },
-                { value: "drawings", label: `Drawings${typedLead.drawings?.length ? ` (${typedLead.drawings.length})` : ""}` },
-                { value: "boqs", label: `BOQs${typedLead.boqs?.length ? ` (${typedLead.boqs.length})` : ""}` },
-                { value: "negotiations", label: `Negotiations${typedLead.negotiations?.length ? ` (${typedLead.negotiations.length})` : ""}` },
-              ].map((t) => (
-                <TabsTrigger
-                  key={t.value}
-                  value={t.value}
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent text-sm"
-                >
-                  {t.label}
-                </TabsTrigger>
-              ))}
+                { value: "activities", label: "Activities", count: typedLead.activities?.length, icon: CheckCircle2 },
+                { value: "site_visits", label: "Site Visits", count: typedLead.siteVisits?.length, icon: Calendar },
+                { value: "drawings", label: "Drawings", count: typedLead.drawings?.length, icon: Pencil },
+                { value: "boqs", label: "BOQs", count: typedLead.boqs?.length, icon: FileText },
+                { value: "negotiations", label: "Negotiations", count: typedLead.negotiations?.length, icon: Trophy },
+              ].map((t) => {
+                const Icon = t.icon;
+                return (
+                  <TabsTrigger
+                    key={t.value}
+                    value={t.value}
+                    className="flex items-center gap-2 px-3.5 py-2 text-sm font-medium transition-all"
+                  >
+                    <Icon className="h-4 w-4 shrink-0 transition-colors" />
+                    <span>{t.label}</span>
+                    {t.count !== undefined && t.count > 0 && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-muted-foreground/15 text-foreground/80 font-mono font-semibold">
+                        {t.count}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                );
+              })}
             </TabsList>
 
             <div className="py-4">

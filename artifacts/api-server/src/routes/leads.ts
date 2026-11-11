@@ -490,6 +490,43 @@ router.delete("/boq-items/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
+router.patch("/boq-items/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id as string, 10);
+  const [existing] = await db.select().from(boqItemsTable).where(eq(boqItemsTable.id, id));
+  if (!existing) {
+    res.status(404).json({ error: "BOQ item not found" });
+    return;
+  }
+  const b = req.body ?? {};
+  const q = b.quantity !== undefined ? Number(b.quantity) : Number(existing.quantity);
+  const up = b.unitPrice !== undefined ? Number(b.unitPrice) : Number(existing.unitPrice);
+  const tax = b.taxPercent !== undefined ? Number(b.taxPercent) : Number(existing.taxPercent);
+  const margin = b.marginPercent !== undefined ? Number(b.marginPercent) : Number(existing.marginPercent);
+  const base = q * up;
+  const total = base + (base * tax) / 100 + (base * margin) / 100;
+
+  const update: Record<string, unknown> = {
+    quantity: String(q),
+    unitPrice: String(up),
+    taxPercent: String(tax),
+    marginPercent: String(margin),
+    totalPrice: total.toFixed(2),
+  };
+  if (b.itemName !== undefined) update.itemName = b.itemName;
+  if (b.category !== undefined) update.category = b.category;
+  if (b.unit !== undefined) update.unit = b.unit;
+  if (b.sortOrder !== undefined) update.sortOrder = b.sortOrder;
+
+  const [item] = await db
+    .update(boqItemsTable)
+    .set(update)
+    .where(eq(boqItemsTable.id, id))
+    .returning();
+
+  await recomputeBoq(existing.boqId);
+  res.json(formatBoqItem(item!));
+});
+
 router.get("/leads/:leadId/negotiations", async (req, res): Promise<void> => {
   const leadId = parseInt(req.params.leadId as string, 10);
   const rows = await db
@@ -816,6 +853,12 @@ router.post("/leads/:id/convert", async (req, res): Promise<void> => {
   });
 
   res.status(201).json(numKeys(project, ["budget"]));
+});
+
+router.post("/leads/ensure-seed", async (_req, res): Promise<void> => {
+  const { ensurePreConstructionSeed } = await import("../seed");
+  await ensurePreConstructionSeed();
+  res.json({ success: true, message: "Pre-construction pipeline seed ensured" });
 });
 
 export default router;

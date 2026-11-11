@@ -41,6 +41,14 @@ testem.log
 .DS_Store
 Thumbs.db
 
+# Database & Environment
+.env
+.env.*
+!.env.example
+.pgdata/
+**/.pgdata/
+*.db
+
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 

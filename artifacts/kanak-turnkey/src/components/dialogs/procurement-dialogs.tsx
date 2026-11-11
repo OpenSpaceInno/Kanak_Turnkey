@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useCreateVendor,
@@ -368,23 +368,44 @@ export function NewPurchaseOrderDialog({
   );
 }
 
-export function NewRfqDialog({ trigger }: { trigger: ReactNode }) {
+export function NewRfqDialog({
+  trigger,
+  defaultMrId,
+  defaultProjectId,
+  defaultTitle,
+}: {
+  trigger: ReactNode;
+  defaultMrId?: number;
+  defaultProjectId?: number;
+  defaultTitle?: string;
+}) {
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
   const create = useCreateRfq();
   const { data: projects } = useListProjects();
 
   const [form, setForm] = useState({
-    projectId: "",
-    title: "",
-    description: "",
+    projectId: defaultProjectId ? String(defaultProjectId) : "",
+    title: defaultTitle ? `RFQ: ${defaultTitle}` : "",
+    description: defaultMrId ? `Generated from Material Request #${defaultMrId}` : "",
   });
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        projectId: defaultProjectId ? String(defaultProjectId) : "",
+        title: defaultTitle ? (defaultTitle.startsWith("RFQ:") ? defaultTitle : `RFQ: ${defaultTitle}`) : "",
+        description: defaultMrId ? `Generated from Material Request #${defaultMrId}` : "",
+      });
+    }
+  }, [open, defaultProjectId, defaultTitle, defaultMrId]);
 
   const submit = async () => {
     if (!form.projectId || !form.title.trim()) return;
     await create.mutateAsync({
       data: {
         projectId: Number(form.projectId),
+        materialRequestId: defaultMrId || null,
         title: form.title,
         description: form.description || null,
       },
@@ -627,15 +648,23 @@ export function NewMaterialDialog({ trigger }: { trigger: ReactNode }) {
   );
 }
 
-export function NewMaterialRequestDialog({ trigger }: { trigger: ReactNode }) {
+export function NewMaterialRequestDialog({
+  trigger,
+  defaultTitle,
+  defaultProjectId,
+}: {
+  trigger: ReactNode;
+  defaultTitle?: string;
+  defaultProjectId?: number;
+}) {
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
   const create = useCreateMaterialRequest();
   const { data: projects } = useListProjects();
 
   const [form, setForm] = useState({
-    projectId: "",
-    title: "",
+    projectId: defaultProjectId ? String(defaultProjectId) : "",
+    title: defaultTitle || "",
     description: "",
     quantity: "",
     unit: "nos",
