@@ -358,6 +358,18 @@ export async function customFetch<T = unknown>(
     }
   }
 
+  // Attach active user ID from local storage for multi-role session persistence
+  if (typeof window !== "undefined" && !headers.has("x-user-id")) {
+    try {
+      const savedUserId = window.localStorage.getItem("kanak_current_user_id");
+      if (savedUserId) {
+        headers.set("x-user-id", savedUserId);
+      }
+    } catch {
+      // ignore storage access errors
+    }
+  }
+
   const requestInfo = { method, url: resolveUrl(input) };
 
   const response = await fetch(input, { ...init, method, headers });

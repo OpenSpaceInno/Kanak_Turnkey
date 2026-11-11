@@ -23,6 +23,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
+  UserCheck,
+  Building,
 } from "lucide-react";
 
 interface DemoUser {
@@ -68,6 +70,36 @@ const DEMO_USERS: DemoUser[] = [
     badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
   },
   {
+    id: 8,
+    name: "Rajesh Verma",
+    email: "rajesh.verma@kanak.in",
+    role: "supervisor",
+    roleTitle: "Site Supervisor & Foreman",
+    department: "Field Execution",
+    icon: UserCheck,
+    badgeColor: "bg-amber-100 text-amber-800 border-amber-300",
+  },
+  {
+    id: 9,
+    name: "Dinesh Patel",
+    email: "dinesh.patel@kanak.in",
+    role: "storekeeper",
+    roleTitle: "Storekeeper & Material Controller",
+    department: "Warehouse & Logistics",
+    icon: ShoppingCart,
+    badgeColor: "bg-teal-100 text-teal-800 border-teal-300",
+  },
+  {
+    id: 10,
+    name: "Apex Engineering (Suresh Nair)",
+    email: "apex.mep@turnkeypartners.com",
+    role: "subcontractor",
+    roleTitle: "Subcontractor Project Lead",
+    department: "MEP Trade Partner",
+    icon: Building,
+    badgeColor: "bg-orange-100 text-orange-800 border-orange-300",
+  },
+  {
     id: 4,
     name: "Vikram Shah",
     email: "vikram.shah@kanak.in",
@@ -97,6 +129,16 @@ const DEMO_USERS: DemoUser[] = [
     icon: User,
     badgeColor: "bg-indigo-100 text-indigo-800 border-indigo-200",
   },
+  {
+    id: 6,
+    name: "Arjun Singh",
+    email: "arjun.singh@kanak.in",
+    role: "viewer",
+    roleTitle: "Project Stakeholder",
+    department: "Client Oversight",
+    icon: Eye,
+    badgeColor: "bg-slate-100 text-slate-800 border-slate-200",
+  },
 ];
 
 export default function LoginPage() {
@@ -123,6 +165,12 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Authentication failed");
+      }
+
+      if (data?.id) {
+        try {
+          localStorage.setItem("kanak_current_user_id", String(data.id));
+        } catch {}
       }
 
       queryClient.setQueryData(getGetCurrentUserQueryKey(), data);

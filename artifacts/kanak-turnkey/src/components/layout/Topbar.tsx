@@ -44,72 +44,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { ManagedUser } from "@/pages/settings/UserManagementTab";
-
-const ROLE_CONFIG: Record<
-  string,
-  { label: string; icon: any; color: string; badgeClass: string }
-> = {
-  admin: {
-    label: "Administrator",
-    icon: Shield,
-    color: "text-purple-600",
-    badgeClass: "bg-purple-50 text-purple-700 border-purple-200",
-  },
-  project_manager: {
-    label: "Project Manager",
-    icon: Briefcase,
-    color: "text-blue-600",
-    badgeClass: "bg-blue-50 text-blue-700 border-blue-200",
-  },
-  engineer: {
-    label: "Site Engineer",
-    icon: HardHat,
-    color: "text-emerald-600",
-    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  },
-  accountant: {
-    label: "Accountant",
-    icon: Calculator,
-    color: "text-amber-600",
-    badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
-  },
-  procurement_officer: {
-    label: "Procurement Officer",
-    icon: ShoppingCart,
-    color: "text-teal-600",
-    badgeClass: "bg-teal-50 text-teal-700 border-teal-200",
-  },
-  supervisor: {
-    label: "Site Supervisor / Foreman",
-    icon: UserCheck,
-    color: "text-amber-600",
-    badgeClass: "bg-amber-50 text-amber-800 border-amber-300",
-  },
-  storekeeper: {
-    label: "Storekeeper / Material Controller",
-    icon: ShoppingCart,
-    color: "text-teal-600",
-    badgeClass: "bg-teal-50 text-teal-800 border-teal-300",
-  },
-  subcontractor: {
-    label: "Subcontractor / Trade Partner",
-    icon: Building,
-    color: "text-orange-600",
-    badgeClass: "bg-orange-50 text-orange-800 border-orange-300",
-  },
-  sales_manager: {
-    label: "Sales Manager",
-    icon: UserIcon,
-    color: "text-indigo-600",
-    badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  },
-  viewer: {
-    label: "Viewer",
-    icon: Eye,
-    color: "text-slate-600",
-    badgeClass: "bg-slate-50 text-slate-700 border-slate-200",
-  },
-};
+import { ROLE_CONFIG, isRouteAllowedForRole } from "@/lib/role-navigation";
 
 function getBreadcrumbs(path: string) {
   if (path === "/") {
@@ -230,16 +165,22 @@ export function Topbar() {
     },
   });
 
-  const handleRoleSwitch = (role: string) => {
+  const handleRoleSwitch = (newRole: string) => {
     switchRole.mutate(
-      { data: { role: role as any } },
+      { data: { role: newRole as any } },
       {
-        onSuccess: () => {
+        onSuccess: (updated: any) => {
+          if (updated) {
+            queryClient.setQueryData(getGetCurrentUserQueryKey(), updated);
+          }
           queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
           toast({
             title: "Operational Role Switched",
-            description: `Now viewing workspace as ${ROLE_CONFIG[role]?.label || role}.`,
+            description: `Now viewing workspace as ${ROLE_CONFIG[newRole]?.label || newRole}.`,
           });
+          if (!isRouteAllowedForRole(newRole, location)) {
+            setLocation("/");
+          }
         },
       }
     );
@@ -256,6 +197,10 @@ export function Topbar() {
       const updated = await res.json();
       if (!res.ok) throw new Error(updated.error || "Failed to switch account");
 
+      try {
+        localStorage.setItem("kanak_current_user_id", String(targetUserId));
+      } catch {}
+
       queryClient.setQueryData(getGetCurrentUserQueryKey(), updated);
       queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
       setIsSwitchUserModalOpen(false);
@@ -264,6 +209,11 @@ export function Topbar() {
         title: "Account Switched",
         description: `Signed in as ${targetName} (${updated.designation || updated.activeRole}).`,
       });
+
+      const targetRole = (updated.activeRole as string) || (updated.roles && updated.roles[0]) || "viewer";
+      if (!isRouteAllowedForRole(targetRole, location)) {
+        setLocation("/");
+      }
     } catch (err: any) {
       toast({
         title: "Switch Error",
@@ -274,6 +224,9 @@ export function Topbar() {
   };
 
   const handleLogout = async () => {
+    try {
+      localStorage.removeItem("kanak_current_user_id");
+    } catch {}
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } catch {

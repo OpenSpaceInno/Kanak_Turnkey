@@ -16,7 +16,29 @@ export type CurrentUser = {
 
 let cachedUser: CurrentUser | null = null;
 
-export async function getCurrentUser(): Promise<CurrentUser> {
+export async function getCurrentUser(userIdOverride?: number | string | null): Promise<CurrentUser> {
+  if (userIdOverride) {
+    const numId = Number(userIdOverride);
+    if (!Number.isNaN(numId) && numId > 0) {
+      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, numId)).limit(1);
+      if (user) {
+        cachedUser = {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          avatarUrl: user.avatarUrl ?? null,
+          roles: user.roles ?? [],
+          activeRole: user.activeRole || (user.roles && user.roles[0]) || "viewer",
+          phone: user.phone ?? null,
+          designation: user.designation ?? null,
+          department: user.department ?? null,
+          status: user.status ?? "active",
+        };
+        return cachedUser;
+      }
+    }
+  }
+
   if (cachedUser) return cachedUser;
   const [user] = await db.select().from(usersTable).orderBy(usersTable.id).limit(1);
   if (!user) throw new Error("No seed user found");
@@ -26,7 +48,7 @@ export async function getCurrentUser(): Promise<CurrentUser> {
     name: user.name,
     avatarUrl: user.avatarUrl ?? null,
     roles: user.roles ?? [],
-    activeRole: user.activeRole,
+    activeRole: user.activeRole || (user.roles && user.roles[0]) || "viewer",
     phone: user.phone ?? null,
     designation: user.designation ?? null,
     department: user.department ?? null,
@@ -35,8 +57,8 @@ export async function getCurrentUser(): Promise<CurrentUser> {
   return cachedUser;
 }
 
-export async function setActiveRole(role: string): Promise<CurrentUser> {
-  const current = await getCurrentUser();
+export async function setActiveRole(role: string, userIdOverride?: number | string | null): Promise<CurrentUser> {
+  const current = await getCurrentUser(userIdOverride);
   await db
     .update(usersTable)
     .set({ activeRole: role })

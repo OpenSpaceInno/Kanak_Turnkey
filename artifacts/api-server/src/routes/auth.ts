@@ -6,8 +6,9 @@ import { hashPassword, verifyPassword } from "../lib/password";
 
 const router: IRouter = Router();
 
-router.get("/auth/me", async (_req, res): Promise<void> => {
-  const user = await getCurrentUser();
+router.get("/auth/me", async (req, res): Promise<void> => {
+  const userIdHeader = (req.headers["x-user-id"] as string) || (req.query?.userId as string);
+  const user = await getCurrentUser(userIdHeader);
   res.json(user);
 });
 
@@ -54,7 +55,8 @@ router.post("/auth/switch-role", async (req, res): Promise<void> => {
     res.status(400).json({ error: "role required" });
     return;
   }
-  const user = await setActiveRole(role);
+  const userIdHeader = (req.headers["x-user-id"] as string) || (req.query?.userId as string);
+  const user = await setActiveRole(role, userIdHeader);
   res.json(user);
 });
 

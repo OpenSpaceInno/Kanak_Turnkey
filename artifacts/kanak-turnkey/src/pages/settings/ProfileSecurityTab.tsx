@@ -23,17 +23,10 @@ import {
   Building,
   Phone,
   Mail,
+  HardHat,
+  UserCheck,
 } from "lucide-react";
-
-const ROLE_ICONS: Record<string, any> = {
-  admin: Shield,
-  project_manager: Briefcase,
-  engineer: User,
-  accountant: Calculator,
-  procurement_officer: ShoppingCart,
-  sales_manager: Briefcase,
-  viewer: Eye,
-};
+import { ROLE_CONFIG } from "@/lib/role-navigation";
 
 export function ProfileSecurityTab() {
   const { data: user, isLoading } = useGetCurrentUser();
@@ -59,11 +52,14 @@ export function ProfileSecurityTab() {
     switchRole.mutate(
       { data: { role: role as any } },
       {
-        onSuccess: () => {
+        onSuccess: (updatedUser: any) => {
+          if (updatedUser) {
+            queryClient.setQueryData(getGetCurrentUserQueryKey(), updatedUser);
+          }
           queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
           toast({
             title: "Role Switched",
-            description: `Your active role is now ${role.replace("_", " ")}.`,
+            description: `Your active role is now ${ROLE_CONFIG[role]?.label || role.replace("_", " ")}.`,
           });
         },
       }
@@ -199,7 +195,12 @@ export function ProfileSecurityTab() {
           <CardContent>
             <RadioGroup value={user.activeRole} onValueChange={handleRoleChange} className="space-y-2.5">
               {user.roles.map((role) => {
-                const Icon = ROLE_ICONS[role] || User;
+                const cfg = ROLE_CONFIG[role] || {
+                  label: role.replace("_", " "),
+                  icon: User,
+                  description: "Standard access permissions",
+                };
+                const Icon = cfg.icon;
                 const isSelected = user.activeRole === role;
                 return (
                   <div
@@ -222,15 +223,9 @@ export function ProfileSecurityTab() {
                           <Icon className="h-4 w-4" />
                         </div>
                         <div>
-                          <span className="font-medium capitalize text-sm">{role.replace("_", " ")}</span>
+                          <span className="font-medium text-sm">{cfg.label}</span>
                           <span className="block text-xs text-muted-foreground">
-                            {role === "admin" && "Full administrative authorization & approvals"}
-                            {role === "project_manager" && "Site execution, scheduling & DPR verification"}
-                            {role === "engineer" && "Field measurement, quality & material requests"}
-                            {role === "accountant" && "Client billing (AR), vendor AP & petty cash"}
-                            {role === "procurement_officer" && "RFQs, quotations & purchase orders"}
-                            {role === "sales_manager" && "Lead conversion, BOQ estimation & customer intake"}
-                            {role === "viewer" && "Read-only access across project matrices"}
+                            {cfg.description}
                           </span>
                         </div>
                       </div>

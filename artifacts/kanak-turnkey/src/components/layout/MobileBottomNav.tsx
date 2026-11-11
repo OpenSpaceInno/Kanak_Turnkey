@@ -49,7 +49,7 @@ export function MobileBottomNav() {
     ];
     rightItems = [
       { label: "Schedule", href: "/tasks", icon: CheckSquare },
-      { label: "Approvals", href: "/approvals", icon: ShieldCheck },
+      { label: "Finance", href: "/finance", icon: DollarSign },
     ];
   } else if (role === "supervisor") {
     leftItems = [
@@ -57,7 +57,16 @@ export function MobileBottomNav() {
       { label: "Work", href: "/tasks", icon: CheckSquare },
     ];
     rightItems = [
-      { label: "Crew", href: "/team", icon: Users },
+      { label: "Materials", href: "/procurement/stock", icon: Layers },
+      { label: "Profile", href: "/settings", icon: Settings },
+    ];
+  } else if (role === "sales_manager") {
+    leftItems = [
+      { label: "Overview", href: "/", icon: LayoutDashboard },
+      { label: "Leads", href: "/leads", icon: Users },
+    ];
+    rightItems = [
+      { label: "Projects", href: "/projects", icon: Briefcase },
       { label: "Profile", href: "/settings", icon: Settings },
     ];
   } else if (role === "storekeeper" || role === "procurement_officer") {
