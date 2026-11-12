@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -218,7 +218,7 @@ function EditProjectDialog({ project, projectId, onSuccess }: { project: Project
 
 function CreateTaskDialog({ projectId, onSuccess }: { projectId: number; onSuccess: () => void }) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", priority: "medium", status: "todo", assignedToId: "", startDate: "", endDate: "" });
+  const [form, setForm] = useState({ title: "", description: "", priority: "medium", status: "todo", assignedToId: "none", startDate: "", endDate: "" });
   const create = useCreateTask();
   const { data: users } = useListUsers();
   const { toast } = useToast();
@@ -232,14 +232,14 @@ function CreateTaskDialog({ projectId, onSuccess }: { projectId: number; onSucce
         description: form.description || null,
         priority: form.priority as TaskInput["priority"],
         status: form.status as TaskInput["status"],
-        assignedToId: form.assignedToId ? Number(form.assignedToId) : null,
+        assignedToId: form.assignedToId && form.assignedToId !== "none" ? Number(form.assignedToId) : null,
         startDate: form.startDate || null,
         endDate: form.endDate || null,
       },
     });
     toast({ title: "Task created" });
     setOpen(false);
-    setForm({ title: "", description: "", priority: "medium", status: "todo", assignedToId: "", startDate: "", endDate: "" });
+    setForm({ title: "", description: "", priority: "medium", status: "todo", assignedToId: "none", startDate: "", endDate: "" });
     onSuccess();
   };
 
@@ -282,10 +282,10 @@ function CreateTaskDialog({ projectId, onSuccess }: { projectId: number; onSucce
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs uppercase tracking-wide text-muted-foreground">Assign To</Label>
-            <Select value={form.assignedToId} onValueChange={v => setForm({ ...form, assignedToId: v })}>
+            <Select value={form.assignedToId || "none"} onValueChange={v => setForm({ ...form, assignedToId: v })}>
               <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="none">Unassigned</SelectItem>
                 {users?.map(u => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -326,7 +326,7 @@ function EditTaskDialog({ task, projectId, onSuccess }: { task: Task; projectId:
     priority: task.priority as string,
     status: task.status as string,
     progress: String(task.progress ?? 0),
-    assignedToId: task.assignedToId ? String(task.assignedToId) : "",
+    assignedToId: task.assignedToId ? String(task.assignedToId) : "none",
     startDate: task.startDate ?? "",
     endDate: task.endDate ?? "",
   });
@@ -335,6 +335,21 @@ function EditTaskDialog({ task, projectId, onSuccess }: { task: Task; projectId:
   const { data: users } = useListUsers();
   const { toast } = useToast();
   const qc = useQueryClient();
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        title: task.title,
+        description: task.description ?? "",
+        priority: task.priority as string,
+        status: task.status as string,
+        progress: String(task.progress ?? 0),
+        assignedToId: task.assignedToId ? String(task.assignedToId) : "none",
+        startDate: task.startDate ?? "",
+        endDate: task.endDate ?? "",
+      });
+    }
+  }, [open, task]);
 
   const handleSave = async () => {
     await update.mutateAsync({
@@ -346,7 +361,7 @@ function EditTaskDialog({ task, projectId, onSuccess }: { task: Task; projectId:
         priority: form.priority as TaskInput["priority"],
         status: form.status as TaskInput["status"],
         progress: Number(form.progress),
-        assignedToId: form.assignedToId ? Number(form.assignedToId) : null,
+        assignedToId: form.assignedToId && form.assignedToId !== "none" ? Number(form.assignedToId) : null,
         startDate: form.startDate || null,
         endDate: form.endDate || null,
       } as TaskInput,
@@ -413,10 +428,10 @@ function EditTaskDialog({ task, projectId, onSuccess }: { task: Task; projectId:
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs uppercase tracking-wide text-muted-foreground">Assign To</Label>
-              <Select value={form.assignedToId} onValueChange={v => setForm({ ...form, assignedToId: v })}>
+              <Select value={form.assignedToId || "none"} onValueChange={v => setForm({ ...form, assignedToId: v })}>
                 <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Unassigned</SelectItem>
+                  <SelectItem value="none">Unassigned</SelectItem>
                   {users?.map(u => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}
                 </SelectContent>
               </Select>
