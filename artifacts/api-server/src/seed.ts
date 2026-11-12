@@ -1857,7 +1857,11 @@ async function ensureRolesAndCompanySeed(): Promise<void> {
 export async function seedIfEmpty(): Promise<void> {
   try {
     const [existingUser] = await db.select().from(usersTable).limit(1);
-    if (existingUser) {
+    const [existingProject] = await db.select().from(projectsTable).limit(1);
+    if (existingUser && !existingProject) {
+      logger.info("Found partial user stub without projects, resetting users for full seed...");
+      await db.delete(usersTable);
+    } else if (existingUser) {
       logger.info("Seed data already present, verifying warehouse & finance data...");
       await ensureWarehouseSeed();
       await ensureProcurementFlowSeed();

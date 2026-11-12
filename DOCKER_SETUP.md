@@ -1,6 +1,6 @@
 # 🐳 Kanak Turnkey — Docker & Coolify Deployment Guide
 
-This project includes a complete Docker configuration with **Frontend**, **Backend**, **MySQL Database**, **phpMyAdmin**, and **PostgreSQL**.
+This project includes a complete 4-service Docker configuration: **Frontend**, **Backend**, **MySQL Database**, and **phpMyAdmin**.
 
 ---
 
@@ -9,16 +9,15 @@ This project includes a complete Docker configuration with **Frontend**, **Backe
 | Service | Internal Port | Description |
 |---|---|---|
 | **frontend** | `80` | React SPA served via high-performance Nginx with `/api/` reverse proxy to backend |
-| **backend** | `3000` | Express 5 API Server (Drizzle ORM + REST API + CORS + HTTPS proxy trust) |
-| **db** | `3306` | MySQL 8.0 pre-seeded with all 32 tables and initial data (root password: `root`) |
+| **backend** | `3000` | Express 5 API Server connected directly to MySQL (`db`) with CORS & HTTPS proxy trust |
+| **db** | `3306` | MySQL 8.0 pre-configured with all 34 tables and auto-seeded operations data (root password: `root`) |
 | **phpmyadmin** | `80` | Visual MySQL database admin UI (User: `root`, Password: `root`) |
-| **postgres** | `5432` | PostgreSQL 16 container for native Drizzle ORM operations |
 
 ---
 
 ## ☁️ Deploying on Coolify (HTTPS via Traefik)
 
-[`docker-compose.yml`](./docker-compose.yml) uses internal `expose:` ports (no hardcoded host `ports:` or `container_name:`) so it integrates directly with Coolify's Traefik reverse proxy without port `80`/`443` conflicts:
+[`docker-compose.yml`](./docker-compose.yml) uses internal `expose:` ports (no hardcoded host `ports:` or `container_name:`) so it integrates directly with Coolify's Traefik reverse proxy without port `80`/`443`/`3306` conflicts:
 
 1. In Coolify, create a **Docker Compose** resource pointing to this repository.
 2. Assign your HTTPS domain (e.g. `https://kanak.yourdomain.com`) to the **`frontend`** service (port `80`).
@@ -59,7 +58,7 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml down
    ```env
    CORS_ORIGIN=https://yourdomain.com,https://api.yourdomain.com
    ```
-3. Nginx (`artifacts/kanak-turnkey/nginx.conf`) reverse-proxies `/api/` to `http://backend:3000/api/` with SSL headers (`X-Forwarded-Proto`, `Host`, `X-Real-IP`).
+3. Nginx (`artifacts/kanak-turnkey/nginx.conf`) reverse-proxies `/api/` to `http://backend:3000/api/` while preserving `X-Forwarded-Proto`.
 
 ---
 
@@ -68,10 +67,10 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml down
 ### 1. Connect to Local MySQL
 Make sure MySQL is running on port `3306` with password `root`:
 ```bash
-# Initialize all 32 tables and seed data in MySQL
+# Initialize all 34 tables in MySQL
 node scripts/setup-mysql.mjs --password="root"
 
-# Test the connection to MySQL and PostgreSQL
+# Test the connection to MySQL
 npm run db:test
 ```
 

@@ -16,7 +16,7 @@ services:
       - kanak_network
 
   # =========================================================================
-  # Backend: Express 5 API Server (Drizzle ORM + REST Endpoints + CORS + HTTPS)
+  # Backend: Express 5 API Server (Drizzle ORM -> MySQL + CORS + HTTPS)
   # =========================================================================
   backend:
     build:
@@ -29,25 +29,22 @@ services:
       PORT: 3000
       NODE_ENV: production
       CORS_ORIGIN: "${CORS_ORIGIN:-*}"
-      # Database Connection Strings (default password: root)
+      # Connects directly to MySQL container `db` (password: root)
       MYSQL_URL: "${MYSQL_URL:-mysql://root:root@db:3306/kanak_turnkey}"
-      DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:root@postgres:5432/kanak_turnkey}"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:3000/api/health"]
       interval: 5s
       timeout: 5s
-      retries: 10
-      start_period: 10s
+      retries: 15
+      start_period: 15s
     depends_on:
       db:
-        condition: service_healthy
-      postgres:
         condition: service_healthy
     networks:
       - kanak_network
 
   # =========================================================================
-  # MySQL Database (Pre-seeded with 32 Turnkey Tables & Operations Data)
+  # MySQL Database (34 Turnkey Tables, Auto-Initialized & Seeded)
   # =========================================================================
   db:
     build:
@@ -93,33 +90,8 @@ services:
     networks:
       - kanak_network
 
-  # =========================================================================
-  # PostgreSQL Database (Native Drizzle ORM Storage)
-  # =========================================================================
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-root}"
-      POSTGRES_DB: "${POSTGRES_DB:-kanak_turnkey}"
-    expose:
-      - "5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    networks:
-      - kanak_network
-
 volumes:
   mysql_data:
-    driver: local
-  postgres_data:
     driver: local
 
 networks:

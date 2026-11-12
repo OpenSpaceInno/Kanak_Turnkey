@@ -54,10 +54,10 @@ npm run dev
 
 ## 🐳 Docker & Coolify Deployment
 
-The project includes a ready-to-use Docker configuration with **Frontend (Nginx)**, **Backend (Express)**, **MySQL Database**, **phpMyAdmin**, and **PostgreSQL**.
+The project includes a ready-to-use 4-service Docker configuration with **Frontend (Nginx)**, **Backend (Express)**, **MySQL Database**, and **phpMyAdmin**.
 
 ### Deploy on Coolify (HTTPS via Traefik)
-`docker-compose.yml` uses internal `expose:` ports to avoid host port `80`/`443` conflicts with Coolify's Traefik proxy:
+`docker-compose.yml` uses internal `expose:` ports to avoid host port `80`/`443`/`3306` conflicts with Coolify's Traefik proxy:
 1. Create a **Docker Compose** resource in Coolify pointing to this repository.
 2. Assign your HTTPS domain to the **`frontend`** service (port `80`).
 3. *(Optional)* Assign a subdomain to **`phpmyadmin`** (port `80`).
@@ -72,10 +72,9 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
 | Service | URL / Port | Credentials / Notes |
 |---|---|---|
 | **Web UI** | [http://localhost](http://localhost) (port 80) | Served via Nginx with API proxy |
-| **API Server** | [http://localhost:3000/api](http://localhost:3000/api) | Healthcheck: `/api/health` |
+| **API Server** | [http://localhost:3000/api](http://localhost:3000/api) | Connected to MySQL (`db`), Healthcheck: `/api/health` |
 | **phpMyAdmin** | [http://localhost:8080](http://localhost:8080) | User: `root`, Password: `root` |
 | **MySQL DB** | `localhost:3306` | User: `root`, Password: `root`, DB: `kanak_turnkey` |
-| **PostgreSQL** | `localhost:5432` | User: `postgres`, Password: `root`, DB: `kanak_turnkey` |
 
 For detailed Docker deployment information, see [`DOCKER_SETUP.md`](./DOCKER_SETUP.md).
 

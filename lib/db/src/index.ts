@@ -1,6 +1,42 @@
+import fs from "node:fs";
 import path from "node:path";
 import * as schema from "./schema/index";
 import { SCHEMA_SQL } from "./schema-sql";
+import { createMysqlPgPool, parseMysqlConnectionConfig, waitForMysql } from "./mysql-adapter";
+import { ensureMysqlSchema } from "./mysql-schema-ddl";
+
+function loadRootEnvIfPresent() {
+  const candidates = [
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(process.cwd(), "../.env"),
+    path.resolve(process.cwd(), "../../.env"),
+  ];
+  for (const envFile of candidates) {
+    if (!fs.existsSync(envFile)) continue;
+    try {
+      const lines = fs.readFileSync(envFile, "utf-8").split(/\r?\n/);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        const eqIdx = trimmed.indexOf("=");
+        if (eqIdx === -1) continue;
+        const key = trimmed.slice(0, eqIdx).trim();
+        let val = trimmed.slice(eqIdx + 1).trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        if (process.env[key] === undefined) {
+          process.env[key] = val;
+        }
+      }
+      break;
+    } catch {
+      // ignore env read errors
+    }
+  }
+}
+
+loadRootEnvIfPresent();
 
 const INCREMENTAL_MIGRATIONS_SQL = `
   CREATE TABLE IF NOT EXISTS "stock_transfers" (
@@ -184,16 +220,10 @@ async function initializeSchema(
   }
 }
 
-const DATABASE_URL = process.env.DATABASE_URL || "";
-const isPostgres = DATABASE_URL.startsWith("postgres://") || DATABASE_URL.startsWith("postgresql://");
-
-let db: any;
-let pool: any = null;
-
-async function waitForPostgres(pool: any, retries = 10, delayMs = 2000) {
+async function waitForPostgres(pgPool: any, retries = 10, delayMs = 2000) {
   for (let i = 1; i <= retries; i++) {
     try {
-      await pool.query("SELECT 1");
+      await pgPool.query("SELECT 1");
       return;
     } catch (err: any) {
       if (i === retries) throw err;
@@ -203,7 +233,31 @@ async function waitForPostgres(pool: any, retries = 10, delayMs = 2000) {
   }
 }
 
-if (isPostgres) {
+const DATABASE_URL = process.env.DATABASE_URL || "";
+const MYSQL_URL = process.env.MYSQL_URL || "";
+const isMysql =
+  Boolean(MYSQL_URL) ||
+  DATABASE_URL.startsWith("mysql://") ||
+  Boolean(process.env.MYSQL_HOST);
+const isPostgres =
+  !isMysql &&
+  (DATABASE_URL.startsWith("postgres://") || DATABASE_URL.startsWith("postgresql://"));
+
+let db: any;
+let pool: any = null;
+
+if (isMysql) {
+  const mysqlConnUrl = MYSQL_URL || (DATABASE_URL.startsWith("mysql://") ? DATABASE_URL : undefined);
+  const cfg = parseMysqlConnectionConfig(mysqlConnUrl);
+  await waitForMysql(cfg);
+
+  const { drizzle: pgDrizzle } = await import("drizzle-orm/node-postgres");
+  pool = createMysqlPgPool(mysqlConnUrl);
+  await ensureMysqlSchema(pool.mysqlPool, cfg.database);
+  db = pgDrizzle(pool, { schema });
+
+  console.log(`✅ Connected to MySQL database '${cfg.database}' at ${cfg.host}:${cfg.port}`);
+} else if (isPostgres) {
   // PostgreSQL setup (Docker PostgreSQL, Supabase, or external PG)
   const { drizzle: pgDrizzle } = await import("drizzle-orm/node-postgres");
   const pg = await import("pg");

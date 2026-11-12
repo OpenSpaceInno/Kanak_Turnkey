@@ -1,6 +1,5 @@
 -- ============================================================================
--- Kanak Turnkey Projects — Complete MySQL 8.0 Schema DDL
--- Generated: 2026-11-05
+-- Kanak Turnkey Projects — Complete MySQL 8.0 Schema DDL (34 Tables)
 -- Database: kanak_turnkey (Character Set: utf8mb4, Collation: utf8mb4_unicode_ci)
 -- ============================================================================
 
@@ -10,26 +9,27 @@ CREATE DATABASE IF NOT EXISTS `kanak_turnkey`
 
 USE `kanak_turnkey`;
 
--- Disable foreign key checks during creation
 SET FOREIGN_KEY_CHECKS = 0;
 
--- ----------------------------------------------------------------------------
 -- 1. Users Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `users` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `email` VARCHAR(255) NOT NULL UNIQUE,
   `name` VARCHAR(255) NOT NULL,
   `avatar_url` TEXT,
-  `roles` JSON NOT NULL,
+  `roles` JSON NOT NULL DEFAULT (JSON_ARRAY()),
   `active_role` VARCHAR(50) NOT NULL DEFAULT 'admin',
+  `password_hash` VARCHAR(255),
+  `password_salt` VARCHAR(64),
+  `phone` VARCHAR(64),
+  `designation` VARCHAR(128),
+  `department` VARCHAR(128),
+  `status` VARCHAR(32) NOT NULL DEFAULT 'active',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 2. Projects Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `projects` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `name` VARCHAR(255) NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS `projects` (
   `start_date` DATE,
   `end_date` DATE,
   `budget` DECIMAL(14, 2),
-  `petty_cash_float` DECIMAL(14, 2) NOT NULL DEFAULT 50000.00,
+  `petty_cash_float` DECIMAL(14, 2) DEFAULT 50000.00,
   `description` TEXT,
   `status` VARCHAR(32) NOT NULL DEFAULT 'planning',
   `progress` INT NOT NULL DEFAULT 0,
@@ -50,9 +50,7 @@ CREATE TABLE IF NOT EXISTS `projects` (
   INDEX `idx_projects_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 3. Leads Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `leads` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `lead_number` VARCHAR(64) NOT NULL UNIQUE,
@@ -76,9 +74,7 @@ CREATE TABLE IF NOT EXISTS `leads` (
   INDEX `idx_leads_status_stage` (`status`, `stage`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 4. Lead Activities Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `lead_activities` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `lead_id` INT NOT NULL,
@@ -91,9 +87,7 @@ CREATE TABLE IF NOT EXISTS `lead_activities` (
   INDEX `idx_lead_activities_lead_id` (`lead_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 5. Site Visits Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `site_visits` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `lead_id` INT NOT NULL,
@@ -111,9 +105,7 @@ CREATE TABLE IF NOT EXISTS `site_visits` (
   INDEX `idx_site_visits_lead_id` (`lead_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 6. Drawings Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `drawings` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `lead_id` INT NOT NULL,
@@ -130,9 +122,7 @@ CREATE TABLE IF NOT EXISTS `drawings` (
   INDEX `idx_drawings_lead_id` (`lead_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 7. BOQs Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `boqs` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `lead_id` INT NOT NULL,
@@ -149,9 +139,7 @@ CREATE TABLE IF NOT EXISTS `boqs` (
   INDEX `idx_boqs_lead_id` (`lead_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 8. BOQ Items Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `boq_items` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `boq_id` INT NOT NULL,
@@ -167,9 +155,7 @@ CREATE TABLE IF NOT EXISTS `boq_items` (
   INDEX `idx_boq_items_boq_id` (`boq_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 9. Negotiations Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `negotiations` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `lead_id` INT NOT NULL,
@@ -186,9 +172,7 @@ CREATE TABLE IF NOT EXISTS `negotiations` (
   INDEX `idx_negotiations_lead_id` (`lead_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 10. Tasks Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `tasks` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT NOT NULL,
@@ -207,9 +191,7 @@ CREATE TABLE IF NOT EXISTS `tasks` (
   INDEX `idx_tasks_project_id` (`project_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 11. Budget Items Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `budget_items` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT NOT NULL,
@@ -221,9 +203,7 @@ CREATE TABLE IF NOT EXISTS `budget_items` (
   INDEX `idx_budget_items_project_id` (`project_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
--- 12. RA Bills (Running Account) Table — Track 1 AR
--- ----------------------------------------------------------------------------
+-- 12. RA Bills Table
 CREATE TABLE IF NOT EXISTS `ra_bills` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT NOT NULL,
@@ -252,9 +232,7 @@ CREATE TABLE IF NOT EXISTS `ra_bills` (
   INDEX `idx_ra_bills_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
--- 13. Client Invoices Table — Track 1 AR
--- ----------------------------------------------------------------------------
+-- 13. Client Invoices Table
 CREATE TABLE IF NOT EXISTS `invoices` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT NOT NULL,
@@ -287,9 +265,7 @@ CREATE TABLE IF NOT EXISTS `invoices` (
   INDEX `idx_invoices_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 14. Vendors Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `vendors` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `name` VARCHAR(255) NOT NULL,
@@ -304,9 +280,7 @@ CREATE TABLE IF NOT EXISTS `vendors` (
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
--- 15. Material Requests Table (Procurement Requisition)
--- ----------------------------------------------------------------------------
+-- 15. Material Requests Table
 CREATE TABLE IF NOT EXISTS `material_requests` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT NOT NULL,
@@ -330,9 +304,7 @@ CREATE TABLE IF NOT EXISTS `material_requests` (
   INDEX `idx_mat_requests_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
--- 16. RFQs Table (Request for Quotations)
--- ----------------------------------------------------------------------------
+-- 16. RFQs Table
 CREATE TABLE IF NOT EXISTS `rfqs` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT NOT NULL,
@@ -349,9 +321,7 @@ CREATE TABLE IF NOT EXISTS `rfqs` (
   INDEX `idx_rfqs_project_id` (`project_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
--- 17. Quotations Table (Vendor Bids)
--- ----------------------------------------------------------------------------
+-- 17. Quotations Table
 CREATE TABLE IF NOT EXISTS `quotations` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `rfq_id` INT NOT NULL,
@@ -369,9 +339,7 @@ CREATE TABLE IF NOT EXISTS `quotations` (
   INDEX `idx_quotations_rfq_id` (`rfq_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
--- 18. Purchase Orders Table (Procurement)
--- ----------------------------------------------------------------------------
+-- 18. Purchase Orders Table
 CREATE TABLE IF NOT EXISTS `purchase_orders` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT NOT NULL,
@@ -404,9 +372,7 @@ CREATE TABLE IF NOT EXISTS `purchase_orders` (
   INDEX `idx_purchase_orders_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
--- 19. Vendor Invoices Table — Track 2 AP & 3-Way Matching
--- ----------------------------------------------------------------------------
+-- 19. Vendor Invoices Table
 CREATE TABLE IF NOT EXISTS `vendor_invoices` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT NOT NULL,
@@ -438,9 +404,7 @@ CREATE TABLE IF NOT EXISTS `vendor_invoices` (
   INDEX `idx_vendor_invoices_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
--- 20. Materials Table (Multi-Location Inventory: Warehouse vs Site)
--- ----------------------------------------------------------------------------
+-- 20. Materials Table
 CREATE TABLE IF NOT EXISTS `materials` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT,
@@ -459,9 +423,7 @@ CREATE TABLE IF NOT EXISTS `materials` (
   INDEX `idx_materials_location_type` (`location_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
--- 21. Stock Transfers Table (Internal Movements)
--- ----------------------------------------------------------------------------
+-- 21. Stock Transfers Table
 CREATE TABLE IF NOT EXISTS `stock_transfers` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `transfer_number` VARCHAR(64) NOT NULL UNIQUE,
@@ -480,9 +442,7 @@ CREATE TABLE IF NOT EXISTS `stock_transfers` (
   INDEX `idx_stock_transfers_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
--- 22. Expenses Table (Site Petty Cash & Field Purchases) — Track 3
--- ----------------------------------------------------------------------------
+-- 22. Expenses Table
 CREATE TABLE IF NOT EXISTS `expenses` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT NOT NULL,
@@ -510,9 +470,7 @@ CREATE TABLE IF NOT EXISTS `expenses` (
   INDEX `idx_expenses_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
--- 23. Financial Instruments Table (BGs, EMDs, Retention Monies)
--- ----------------------------------------------------------------------------
+-- 23. Financial Instruments Table
 CREATE TABLE IF NOT EXISTS `financial_instruments` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT,
@@ -533,9 +491,7 @@ CREATE TABLE IF NOT EXISTS `financial_instruments` (
   INDEX `idx_fi_project_id` (`project_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 24. Stakeholders Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `stakeholders` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT NOT NULL,
@@ -547,9 +503,7 @@ CREATE TABLE IF NOT EXISTS `stakeholders` (
   `access_level` VARCHAR(16) NOT NULL DEFAULT 'read'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 25. Communications Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `communications` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT,
@@ -564,9 +518,7 @@ CREATE TABLE IF NOT EXISTS `communications` (
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 26. Meetings Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `meetings` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT NOT NULL,
@@ -582,9 +534,7 @@ CREATE TABLE IF NOT EXISTS `meetings` (
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 27. Documents Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `documents` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT NOT NULL,
@@ -599,9 +549,7 @@ CREATE TABLE IF NOT EXISTS `documents` (
   `uploaded_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 28. Notifications Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `notifications` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `user_id` INT,
@@ -612,9 +560,7 @@ CREATE TABLE IF NOT EXISTS `notifications` (
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 29. Audit Logs Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `audit_logs` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `user_id` INT,
@@ -627,9 +573,7 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 30. Task Templates Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `task_templates` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `name` VARCHAR(255) NOT NULL,
@@ -641,9 +585,7 @@ CREATE TABLE IF NOT EXISTS `task_templates` (
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 31. Task Template Items Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `task_template_items` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `template_id` INT NOT NULL,
@@ -656,9 +598,7 @@ CREATE TABLE IF NOT EXISTS `task_template_items` (
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----------------------------------------------------------------------------
 -- 32. Punch List Items Table
--- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `punch_list_items` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `project_id` INT NOT NULL,
@@ -676,12 +616,45 @@ CREATE TABLE IF NOT EXISTS `punch_list_items` (
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Re-enable foreign key checks
+-- 33. Roles Table
+CREATE TABLE IF NOT EXISTS `roles` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `key` VARCHAR(64) NOT NULL UNIQUE,
+  `name` VARCHAR(128) NOT NULL,
+  `description` TEXT,
+  `is_system` TINYINT(1) NOT NULL DEFAULT 0,
+  `permissions` JSON NOT NULL DEFAULT (JSON_ARRAY()),
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 34. Company Settings Table
+CREATE TABLE IF NOT EXISTS `company_settings` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `company_name` VARCHAR(255) NOT NULL DEFAULT 'Kanak Turnkey Solutions Pvt. Ltd.',
+  `legal_entity_type` VARCHAR(128) DEFAULT 'Private Limited',
+  `gstin` VARCHAR(32) DEFAULT '27AABCK1234F1Z5',
+  `pan` VARCHAR(32) DEFAULT 'AABCK1234F',
+  `cin` VARCHAR(64) DEFAULT 'U45200MH2021PTC123456',
+  `email` VARCHAR(255) DEFAULT 'contact@kanakturnkey.com',
+  `phone` VARCHAR(64) DEFAULT '+91 98765 43210',
+  `website` VARCHAR(255) DEFAULT 'https://kanakturnkey.com',
+  `address` TEXT DEFAULT ('Tower 4, Level 8, Tech Park, Powai'),
+  `city` VARCHAR(128) DEFAULT 'Mumbai',
+  `state` VARCHAR(128) DEFAULT 'Maharashtra',
+  `pincode` VARCHAR(32) DEFAULT '400076',
+  `country` VARCHAR(128) DEFAULT 'India',
+  `bank_name` VARCHAR(128) DEFAULT 'HDFC Bank',
+  `bank_account_name` VARCHAR(255) DEFAULT 'Kanak Turnkey Solutions Pvt Ltd',
+  `bank_account_number` VARCHAR(64) DEFAULT '50200012345678',
+  `bank_ifsc` VARCHAR(32) DEFAULT 'HDFC0000123',
+  `bank_branch` VARCHAR(128) DEFAULT 'Powai Branch, Mumbai',
+  `currency` VARCHAR(16) DEFAULT 'INR',
+  `currency_symbol` VARCHAR(8) DEFAULT '₹',
+  `logo_url` TEXT,
+  `terms_and_conditions` TEXT DEFAULT ('Payment due within 30 days of invoice date. 18% p.a. interest applicable on overdue bills.'),
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
-
--- ============================================================================
--- Seed Initial Admin User
--- ============================================================================
-INSERT IGNORE INTO `users` (`id`, `email`, `name`, `roles`, `active_role`)
-VALUES (1, 'ananya.rao@kanak.in', 'Ananya Rao', '["admin", "project_manager", "sales_manager", "engineer", "accountant", "procurement_officer", "viewer"]', 'admin');
-
