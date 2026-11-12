@@ -152,6 +152,7 @@ async function runAudit() {
   // 1.4 POST /auth/switch-role
   const switchRole = await api("/api/auth/switch-role", {
     method: "POST",
+    userId: 1,
     body: { role: "admin" },
   });
   if (switchRole.ok && switchRole.data?.activeRole === "admin") {
