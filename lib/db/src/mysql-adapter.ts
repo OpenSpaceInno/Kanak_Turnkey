@@ -573,34 +573,70 @@ export function createMysqlPgPool(mysqlUrl?: string) {
     },
   });
 
-  // Expose a pg-Pool-compatible `.query(...)` method for drizzle-orm/node-postgres
-  const pgCompatiblePool = {
-    mysqlPool,
-    config: cfg,
-    async query(queryTextOrConfig: string | { text: string; rowMode?: string }, values?: unknown[]) {
-      const text = typeof queryTextOrConfig === "string" ? queryTextOrConfig : queryTextOrConfig.text;
-      const rowsAsArray = typeof queryTextOrConfig === "object" && queryTextOrConfig.rowMode === "array";
-      const { sql, params } = translatePgSqlToMySql(text, values ?? []);
+  async function runQueryOnConnection(
+    conn: PoolConnection,
+    queryTextOrConfig: string | { text: string; rowMode?: string },
+    values?: unknown[],
+  ) {
+    const text = typeof queryTextOrConfig === "string" ? queryTextOrConfig : queryTextOrConfig.text;
+    const rowsAsArray = typeof queryTextOrConfig === "object" && queryTextOrConfig.rowMode === "array";
+    const trimmedLower = text.trim().toLowerCase();
 
-      if (findTopLevelKeyword(sql, "returning") !== -1) {
-        const conn = await mysqlPool.getConnection();
-        try {
-          return await executeWithReturning(conn, sql, params, rowsAsArray);
-        } finally {
+    if (trimmedLower === "begin" || trimmedLower.startsWith("begin ")) {
+      await conn.beginTransaction();
+      return { rows: [] };
+    }
+    if (trimmedLower === "commit") {
+      await conn.commit();
+      return { rows: [] };
+    }
+    if (trimmedLower === "rollback") {
+      await conn.rollback();
+      return { rows: [] };
+    }
+
+    const { sql, params } = translatePgSqlToMySql(text, values ?? []);
+    if (findTopLevelKeyword(sql, "returning") !== -1) {
+      return await executeWithReturning(conn, sql, params, rowsAsArray);
+    }
+
+    const [res]: any = await conn.query({ sql, rowsAsArray }, params);
+    if (Array.isArray(res)) {
+      return { rows: res };
+    }
+    return { rows: [], rowCount: res?.affectedRows ?? 0 };
+  }
+
+  // Named class containing "Pool" so drizzle-orm/node-postgres detects pool.connect() for transactions
+  class MysqlPgPool {
+    mysqlPool = mysqlPool;
+    config = cfg;
+
+    async connect() {
+      const conn = await mysqlPool.getConnection();
+      return {
+        query(queryTextOrConfig: string | { text: string; rowMode?: string }, values?: unknown[]) {
+          return runQueryOnConnection(conn, queryTextOrConfig, values);
+        },
+        release() {
           conn.release();
-        }
-      }
+        },
+      };
+    }
 
-      const [res]: any = await mysqlPool.query({ sql, rowsAsArray }, params);
-      if (Array.isArray(res)) {
-        return { rows: res };
+    async query(queryTextOrConfig: string | { text: string; rowMode?: string }, values?: unknown[]) {
+      const conn = await mysqlPool.getConnection();
+      try {
+        return await runQueryOnConnection(conn, queryTextOrConfig, values);
+      } finally {
+        conn.release();
       }
-      return { rows: [], rowCount: res?.affectedRows ?? 0 };
-    },
+    }
+
     async end() {
       await mysqlPool.end();
-    },
-  };
+    }
+  }
 
-  return pgCompatiblePool;
+  return new MysqlPgPool();
 }
